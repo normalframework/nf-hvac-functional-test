@@ -20,7 +20,12 @@ async function onRequest(ctx) {
   else if (args.payload && typeof args.payload === 'object') payload = args.payload;
   if (args.op) payload.op = args.op;
   if (args.config) payload.config = args.config;
-  return adminAction(session, action, payload);
+  const result = await adminAction(session, action, payload);
+  // The page reads the answer from the run's last JSON event, the same pattern as the Open-FDD app.
+  const text = JSON.stringify(result);
+  if (typeof sdk.logEvent === 'function') sdk.logEvent(text);
+  else if (!process.env.NODE_TEST_CONTEXT) console.log(text);
+  return result;
 }
 
 onRequest.useSession = (next) => {

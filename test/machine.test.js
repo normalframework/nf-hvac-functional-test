@@ -89,3 +89,28 @@ test('economizer skip and a tick gap do not leave the run active', () => {
   const failed = next(createState(), { type: 'START', now: 0, runId: 'run_e', steps: [] }).state;
   assert.equal(next(failed, { type: 'PRECHECK_FAILED', reason: 'fan_off' }).state.phase, 'FAILED');
 });
+
+test('every abnormal event from every active phase goes through RELEASING', () => {
+  const { createState, next } = require('../lib/machine');
+  const steps = [
+    { step_id: 'ahu.baseline', writes: [], hold_ms: 1000 },
+    { step_id: 'ahu.recirc', writes: [{ role: 'cooling_valve_position_command', value: 0 }], hold_ms: 1000 },
+    { step_id: 'recovery', writes: [], hold_ms: 1000 },
+  ];
+  const phases = { PRECHECK: -1, BASELINE: 0, STEP: 1, RECOVERY: 2 };
+  const events = ['ABORT', 'INTERLOCK', 'TIMEOUT', 'COMM_LOSS', 'TICK_GAP', 'WRITE_FAILED', 'EXCEPTION'];
+  for (const [phase, stepIndex] of Object.entries(phases)) {
+    for (const type of events) {
+      const state = { ...createState(), phase, stepIndex, steps, runId: 'r', runStartedAt: 0, lastTick: 0 };
+      const out = next(state, { type, now: 1 });
+      assert.equal(out.state.phase, 'RELEASING', `${phase} ${type}`);
+      assert.deepEqual(out.effects, [{ type: 'release' }], `${phase} ${type}`);
+      // A run only ends once release is confirmed; a failed release is sticky.
+      const done = next(out.state, { type: 'RELEASE_OK', now: 2 });
+      assert.ok(['ABORTED', 'FAILED', 'COMPLETE', 'RECOVERY'].includes(done.state.phase), `${phase} ${type} -> ${done.state.phase}`);
+      const stuck = next(out.state, { type: 'RELEASE_FAILED', now: 2 });
+      assert.equal(stuck.state.phase, 'NEEDS_ATTENTION');
+      assert.equal(next(stuck.state, { type: 'START', now: 3, runId: 'again', steps }).state.phase, 'NEEDS_ATTENTION');
+    }
+  }
+});

@@ -3,6 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const http = require('node:http');
 const { createFake } = require('./fake/server');
 const { NfClient } = require('../lib/nf/client');
@@ -112,14 +113,22 @@ test('admin actions validate, discover, start, abort, and acknowledge', async ()
   }
 });
 
-test('the status page lists the operator fields and serves', async () => {
+test('the operator page has the safety elements, no inline code, and serves', async () => {
   const html = fs.readFileSync('static/index.html', 'utf8');
-  for (const id of ['state', 'step', 'time-left', 'overrides', 'interlocks', 'release', 'capability', 'abort', 'dry-run-banner', 'unknown-banner']) {
-    assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['modeBadge', 'modeText', 'stateLabel', 'rings', 'abortBtn', 'unknownBanner', 'attentionBox', 'retryBtn', 'ackBtn', 'commands', 'armDialog', 'armAck', 'armPhrase', 'armConfirm', 'weekGrid', 'airpath', 'devices', 'historyTable']) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(html, /status unknown/);
-  assert.match(html, /\/api\/v1\/hooks\/admin\/invoke/);
-  assert.match(html, /dry_run !== true/);
+  assert.match(html, /STATUS UNKNOWN/);
+  assert.match(html, /Content-Security-Policy[^>]+script-src 'self'/);
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/, 'no inline scripts');
+  assert.doesNotMatch(html, /\sstyle=/, 'no inline styles');
+  assert.doesNotMatch(html, /\son[a-z]+=/, 'no inline handlers');
+  assert.match(html, /id="armConfirm" disabled/);
+  for (const src of html.matchAll(/(?:src|href)="([^"?#:]+)"/g)) {
+    assert.ok(fs.existsSync(path.join('static', src[1])), `missing ${src[1]}`);
+  }
+  const app = fs.readFileSync('static/js/app.js', 'utf8');
+  assert.match(app, /params\.get\('demo'\) === '1'/, 'demo mode only on request');
   const server = http.createServer((_req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end(html);
@@ -133,8 +142,8 @@ test('the status page lists the operator fields and serves', async () => {
     const reply = await fetch(`http://127.0.0.1:${port}/`);
     const body = await reply.text();
     assert.equal(reply.status, 200);
-    assert.match(body, /Dry-run is on/);
-    assert.match(body, /Abort/);
+    assert.match(body, /Dry-run is the default/);
+    assert.match(body, /Abort and release/);
     const unknown = await readStatus(null);
     assert.equal(unknown.state, 'status unknown');
     assert.equal(unknown.show_dry_run, false);

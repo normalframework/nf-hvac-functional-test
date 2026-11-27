@@ -36,6 +36,13 @@ const ALWAYS = [
   'lib/run_seq.js',
   'lib/ulid.js',
   'lib/manifest.js',
+  'lib/trigger_store.js',
+  'lib/trigger_run.js',
+  'static/js/core/rrule.js',
+  'static/js/core/timetable.js',
+  'static/js/core/trigger.js',
+  'static/js/core/stateview.js',
+  'static/js/core/touchmap.js',
 ];
 
 const WHEN_PRESENT = [

@@ -5,7 +5,7 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'coverage/**', 'local/**'],
+    ignores: ['node_modules/**', 'coverage/**', 'local/**', 'static/vendor/**'],
   },
   js.configs.recommended,
   {
@@ -21,5 +21,17 @@ module.exports = [
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }],
       eqeqeq: ['error', 'always'],
     },
+  },
+  {
+    files: ['static/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
+    files: ['static/echarts-global.js'],
+    languageOptions: { sourceType: 'module' },
   },
 ];

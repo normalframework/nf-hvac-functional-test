@@ -1,65 +1,158 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>HVAC functional test</title>
-  <style>
-    body { font-family: sans-serif; margin: 2rem; color: #1b1b1b; }
-    .banner { background: #fff4cc; border: 1px solid #e0b000; padding: 0.75rem 1rem; }
-    button { font-size: 1rem; padding: 0.4rem 0.8rem; }
-    dl { display: grid; grid-template-columns: 12rem 1fr; gap: 0.4rem 1rem; }
-    dt { font-weight: 600; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HVAC functional test</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<!--
+  NF static app page, served from static/ at /api/v1/apps/static/<app-id>/ on the console origin.
+  Plain JavaScript, no build step. Strict CSP: no inline scripts or styles.
+  js/core/*.js are pure modules shared with the hooks and the Node tests.
+  Add ?demo=1 to run the whole page on fixture data with no station.
+-->
+<script src="theme-init.js"></script>
+<script type="module" src="echarts-global.js"></script>
+<script defer src="js/core/rrule.js"></script>
+<script defer src="js/core/timetable.js"></script>
+<script defer src="js/core/trigger.js"></script>
+<script defer src="js/core/stateview.js"></script>
+<script defer src="js/core/touchmap.js"></script>
+<script defer src="js/demo-data.js"></script>
+<script defer src="js/demo.js"></script>
+<script defer src="js/api.js"></script>
+<script defer src="js/dom.js"></script>
+<script defer src="js/machine-view.js"></script>
+<script defer src="js/week-grid.js"></script>
+<script defer src="js/schedule-view.js"></script>
+<script defer src="js/airpath.js"></script>
+<script defer src="js/history-view.js"></script>
+<script defer src="js/app.js"></script>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <p id="unknown-banner" class="banner" hidden>Status unknown. The abort result is not confirmed.</p>
-  <p id="dry-run-banner" class="banner" hidden>Dry-run is on. This rehearsal does not write equipment.</p>
-  <h1>Functional test</h1>
-  <dl>
-    <dt>State</dt><dd id="state">IDLE</dd>
-    <dt>Step</dt><dd id="step">none</dd>
-    <dt>Time left</dt><dd id="time-left">0 s</dd>
-    <dt>Active overrides</dt><dd id="overrides">none</dd>
-    <dt>Interlock readings</dt><dd id="interlocks">none</dd>
-    <dt>Release status</dt><dd id="release">idle</dd>
-    <dt>Capability report</dt><dd id="capability">none</dd>
-  </dl>
-  <p><button id="abort" type="button">Abort</button></p>
-  <script>
-    async function refresh() {
-      const reply = await fetch('status.json').catch(() => null);
-      if (!reply || !reply.ok) {
-        document.getElementById('state').textContent = 'status unknown';
-        document.getElementById('unknown-banner').hidden = false;
-        document.getElementById('dry-run-banner').hidden = true;
-        return;
-      }
-      const body = await reply.json();
-      document.getElementById('unknown-banner').hidden = true;
-      document.getElementById('state').textContent = body.state || 'IDLE';
-      document.getElementById('step').textContent = body.step || 'none';
-      document.getElementById('time-left').textContent = body.time_left || '0 s';
-      document.getElementById('overrides').textContent = body.overrides || 'none';
-      document.getElementById('interlocks').textContent = body.interlocks || 'none';
-      document.getElementById('release').textContent = body.release || 'idle';
-      document.getElementById('capability').textContent = body.capability || 'none';
-      document.getElementById('dry-run-banner').hidden = body.dry_run !== true;
-    }
-    document.getElementById('abort').addEventListener('click', async () => {
-      const reply = await fetch('/api/v1/hooks/admin/invoke', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ args: { action: 'abort' } }),
-      }).catch(() => null);
-      if (!reply || !reply.ok) {
-        document.getElementById('release').textContent = 'abort failed';
-        document.getElementById('unknown-banner').hidden = false;
-        return;
-      }
-      const body = await reply.json();
-      document.getElementById('release').textContent = body.state || 'RELEASING';
-    });
-    refresh();
-  </script>
+<header>
+  <div>
+    <h1>HVAC functional test</h1>
+    <div class="sub">AHU functional test with an optional VAV max-cooling step · Normal Framework app</div>
+  </div>
+  <div class="spacer"></div>
+  <div id="modeBadge" class="mode-badge unknown" role="status" aria-live="polite"><span class="mode-dot"></span><b id="modeText">STATUS UNKNOWN</b><span id="modeSub" class="mode-sub"></span></div>
+  <span id="demoPill" class="pill demo-pill" hidden>DEMO · fixture data · no station</span>
+  <button id="abortBtn" class="btn danger" type="button" hidden>Abort and release</button>
+  <button id="themeBtn" class="btn" type="button" aria-label="Toggle light or dark theme">Theme</button>
+</header>
+<nav class="tabs" id="tabs">
+  <button type="button" data-tab="overview" class="on">Overview</button>
+  <button type="button" data-tab="schedule">Schedule</button>
+  <button type="button" data-tab="equipment">What the test touches</button>
+  <button type="button" data-tab="history">Run history</button>
+</nav>
+<main>
+  <div id="err" role="alert"></div>
+  <p id="unknownBanner" class="banner bad-banner" hidden>Status unknown. The page cannot reach the app hooks, so it cannot confirm whether a run or override is active. <a href="?demo=1">Open demo mode</a> to explore the page without a station.</p>
+
+  <section class="tab on" id="tab-overview">
+    <div class="cards" id="overviewCards"></div>
+    <div class="panel">
+      <h2>Run state machine <span class="hint" id="machineHint"></span></h2>
+      <div id="machineSvg" class="machine"></div>
+      <div class="machine-foot">
+        <div>
+          <div class="state-label" id="stateLabel">IDLE</div>
+          <div class="muted" id="stateDetail"></div>
+        </div>
+        <div class="rings" id="rings"></div>
+      </div>
+      <div class="attention" id="attentionBox" hidden>
+        <b>Needs attention.</b> A release was not verified. Check the equipment, then retry the release or acknowledge.
+        <div class="actions"><button class="btn" type="button" id="retryBtn">Retry release</button><button class="btn" type="button" id="ackBtn">Acknowledge</button></div>
+      </div>
+    </div>
+    <div class="grid57">
+      <div class="panel">
+        <h2>Step timeline <span class="hint">plan from the site model; the marker is now</span></h2>
+        <div id="stepChart" class="chart short"></div>
+      </div>
+      <div class="panel">
+        <h2>Active NF commands <span class="hint">every override is a named command with an expiry; it reverts on its own</span></h2>
+        <div id="commands"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-schedule">
+    <div class="grid57">
+      <div class="panel">
+        <h2>When the test runs <span class="hint">NF scheduled hook · recurrence in the site timezone</span></h2>
+        <div id="ruleBuilder"></div>
+      </div>
+      <div class="panel">
+        <h2>Trigger mode</h2>
+        <div id="modeControls"></div>
+        <h2 class="mt">Next six runs</h2>
+        <div id="nextRuns"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Weekly test windows <span class="hint">drag to paint a window, drag edges to resize, drag to move, double-click to delete. Hatched = building occupied (NF schedule). Diamonds = scheduled runs.</span>
+        <span class="seg flush week-nav"><button type="button" id="weekPrev" aria-label="Previous week">◀</button><button type="button" id="weekNow">This week</button><button type="button" id="weekNext" aria-label="Next week">▶</button></span>
+      </h2>
+      <div id="weekGrid" class="week"></div>
+      <div class="legend mt6"><span><i class="lg-window"></i>Test window</span><span><i class="lg-occ"></i>Occupied (NF schedule)</span><span><i class="lg-event"></i>Special event</span><span><i class="lg-run"></i>Scheduled run</span><span><i class="lg-skip"></i>Run that would be skipped</span></div>
+    </div>
+    <div class="panel">
+      <h2>Occupancy and holiday blackout <span class="hint">NF schedule service, read only</span></h2>
+      <div id="blackout"></div>
+    </div>
+    <div class="save-bar"><span id="saveState" class="muted">No unsaved changes</span><button class="btn" type="button" id="revertBtn">Revert</button><button class="btn primary" type="button" id="saveBtn">Save schedule</button></div>
+  </section>
+
+  <section class="tab" id="tab-equipment">
+    <div class="panel">
+      <h2>Air path <span class="hint">read-only points in blue, points the test writes in orange. Pick a step to see what it commands.</span>
+        <span class="seg flush" id="stepPick"></span>
+        <button class="btn" type="button" id="playBtn">Play the sequence</button>
+      </h2>
+      <div id="airpath" class="airpath"></div>
+      <div id="stageDetail" class="detail mt6"></div>
+    </div>
+    <div class="panel">
+      <h2>Device by device <span class="hint">roles from the site model (223P-derived names, shared with Open-FDD)</span></h2>
+      <div id="devices" class="objs"></div>
+      <div id="skipped" class="mt6"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-history">
+    <div class="panel">
+      <h2>Runs <span class="hint">trigger decisions and completed runs</span></h2>
+      <div id="historyChart" class="chart short"></div>
+      <div id="historyTable" class="tablewrap mt6"></div>
+    </div>
+    <div class="panel">
+      <h2>NF hook runs <span class="hint">trigger and tick hooks, from the NF hook run log</span></h2>
+      <div id="hookRuns" class="tablewrap"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="armDialog" class="arm-dialog">
+  <form method="dialog" id="armForm">
+    <h2>Arm scheduled live runs</h2>
+    <p>When armed, the next due occurrence starts a <b>live</b> functional test with no one at the console. It overrides dampers, valves and, if enabled, VAV boxes through the NF command service.</p>
+    <ul class="arm-list">
+      <li>Every write is a named NF command with an expiry. It reverts on its own if the app stops.</li>
+      <li>The run releases every override on completion, abort, interlock, timeout and error.</li>
+      <li>The site configuration must also allow live writes (<span class="mono">dry_run: false</span>), or the run stays a rehearsal.</li>
+      <li>Changing the schedule, windows or blackout disarms it.</li>
+    </ul>
+    <label class="arm-check"><input type="checkbox" id="armAck"> I have checked the site configuration and the interlocks for this equipment.</label>
+    <label class="arm-phrase">Type <b class="mono">ARM</b> to confirm <input type="text" id="armPhrase" autocomplete="off" spellcheck="false"></label>
+    <div class="actions"><button class="btn" value="cancel" type="submit">Cancel</button><button class="btn danger" value="arm" type="submit" id="armConfirm" disabled>Arm live runs</button></div>
+  </form>
+</dialog>
+<footer id="footer">Dry-run is the default. Overrides use the NF command service at the configured BACnet priority.</footer>
 </body>
 </html>

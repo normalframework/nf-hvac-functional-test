@@ -11,6 +11,9 @@ A Normal Framework (NF) app that runs automated HVAC functional tests on air han
 3. **Data capture.** Samples the involved points at a higher rate during the test window into a dedicated NF layer, and writes a run manifest with step timestamps so SQL tools can label the data. Analysis is out of scope.
 4. **Safety.** Dry-run by default, writes at a configurable BACnet priority (default 8), NF command contexts with a short lease and keepalive, a persisted override ledger, interlocks, and release on end, abort, timeout and restart.
 
+5. **Scheduled trigger.** An NF scheduled hook checks a stored recurrence (weekly, nth weekday, last weekday of the month, or one-off) in the site timezone, limited to weekly test windows and skipped on occupancy or holidays from an NF schedule. It is off by default. Dry-run mode rehearses on schedule with no writes. Live runs need an explicit arm step in the page.
+6. **Operator page.** A static page shows the run state machine with countdowns, the schedule editor and weekly grid, the points each step reads and writes on an air path diagram, active NF commands with their expiry, and run history. Open it with `?demo=1` to run it on fixture data with no station.
+
 Point roles use ASHRAE 223P-derived snake_case names (same convention as Open-FDD). The test plan is built from the equipment model. Haystack tags are the model path. Turtle input is disabled until Oxigraph 0.5.13 and the shared 223P role file are vendored; the hook does not run OntoEnv or Shifty and does not fetch ontologies. A point is writable only when the model marks it writable. No site, equipment or point names are hard-coded.
 
 ## Development
@@ -25,7 +28,10 @@ npm run typecheck
 npm run coverage
 npm run validate:examples
 npm run scan
+npm run build:demo     # regenerate static/js/demo-data.js after plan changes
 ```
+
+To view the page without a station, serve `static/` with any static file server and open `index.html?demo=1`.
 
 `dry_run` defaults to true. A live write also needs `confirm_live` on the start request. BACnet priority defaults to 8 and must be an integer from 3 to 16. Priorities 1 and 2 are rejected.
 

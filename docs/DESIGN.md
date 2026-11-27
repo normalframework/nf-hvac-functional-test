@@ -472,8 +472,9 @@ Mapping to NF concepts, taken from the public NF docs and the example apps in th
 - **Hooks** (`hooks-update/*.json`):
   - `tick`: scheduled, `FREQ=SECONDLY;INTERVAL=10`, no bound points, `invokeTimeout` 8 s, single instance. Loads state from disk, advances the state machine one step, performs due reads and writes, persists, returns. Global variables (NF creates them as trendable points): `ftest_state`, `ftest_step_index`, `ftest_run_seq`, `ftest_overrides_active`, `ftest_needs_attention`.
   - `admin`: `MODE_ON_REQUEST`, handles operator actions (`start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`). Arguments are strings (JSON-encode objects).
+  - `trigger`: scheduled every minute. Evaluates the stored recurrence in the site timezone, the weekly test windows and the NF schedule blackout, then queues a start for the tick hook. Off by default (`disabled`, `dry_run`, `armed`). Global variables `ftest_trigger_mode` and `ftest_trigger_next`. See decision D23.
   - `shutdown` handling: the tick hook registers a best-effort SIGTERM handler that releases.
-- **Static UI**: a small status page under `static/` served at `/api/v1/apps/static/<app-id>/`. Through the Normal Online portal, page requests need the console token (see the Open-FDD NF app's client for a working pattern); the LAN path works with the NF console session.
+- **Static UI**: an operator page under `static/` served at `/api/v1/apps/static/<app-id>/`: state machine with countdowns, schedule editor with a weekly grid and NF schedule overlay, air path and device view of what each step writes, active NF commands, and run history. Plain JavaScript and the vendored ECharts build, same theme tokens as the Open-FDD NF app. `static/js/core/` holds pure modules used by both the page and the hooks. Through the Normal Online portal, page requests need the console token (see the Open-FDD NF app's client for a working pattern); the LAN path works with the NF console session.
 - **Settings**: NF app options (`siteConfig` JSON string, `enabled`, `logLevel`). Hook settings are options, not hook config.
 - **Persistence**: `local/` under the app directory for the ledger and manifests (the nf-snmp app uses the same pattern).
 - **Modeling**: the app reads the Haystack model through the point query API for optional role binding. It does not tag or create equipment.
@@ -484,8 +485,8 @@ Code layout (pure logic has no NF or SDK imports so tests run anywhere):
 ```
 app.json
 package.json
-hooks-update/{tick,admin}.json
-hooks/{tick,admin}.js          thin adapters: load config, build runner, call it
+hooks-update/{tick,admin,trigger}.json
+hooks/{tick,admin,trigger}.js          thin adapters: load config, build runner, call it
 lib/
   config/        schema + validate
   roles.js       role registry, units, directions, clamps
@@ -501,7 +502,7 @@ lib/
   manifest.js
   nf/            client.js (REST), types
 schema/site-config.schema.json
-static/          status page
+static/          operator page (js/core: rrule, timetable, trigger, stateview, touchmap)
 test/            unit, integration with fake NF, safety invariants
 test/fake/       fake NF and BACnet backend (section 9)
 docs/

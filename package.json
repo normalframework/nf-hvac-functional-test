@@ -16,6 +16,7 @@
     "validate:examples": "node scripts/validate-examples.js",
     "scan": "node scripts/scan-forbidden.js",
     "roles:sync": "node scripts/check-role-sync.js",
+    "build:demo": "node scripts/build-demo.js",
     "check": "npm run lint && npm run typecheck && npm test && npm run coverage && npm run validate:examples && npm run scan"
   },
   "dependencies": {

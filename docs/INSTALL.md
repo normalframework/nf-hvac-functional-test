@@ -15,7 +15,7 @@ Point the NF app installer at this directory. The app id is `nf-hvac-functional-
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `siteConfig` | empty | JSON site policy. Validate it before enabling a run. |
-| `enabled` | true | When false, the 10 second tick does nothing. |
+| `enabled` | true | When false, the 10 second tick and the scheduled trigger do nothing. |
 | `logLevel` | info | `debug`, `info`, `warn`, or `error`. |
 
 `dry_run` inside `siteConfig` defaults to true. A live run also needs `confirm_live` on the start action.
@@ -30,3 +30,20 @@ Hooks:
 
 - `tick` runs every 10 seconds (`FREQ=SECONDLY;INTERVAL=10`) with an 8 second invoke timeout.
 - `admin` is on request: `start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`.
+- `trigger` runs every minute (`DTSTART:20260101T000000Z` and `RRULE:FREQ=MINUTELY;INTERVAL=1` on separate lines). It starts a run only when the stored rule is due. See below.
+
+## Scheduled trigger
+
+The trigger settings live in `local/trigger.json` and are edited from the page (admin hook action `trigger`). A fresh install is `disabled`.
+
+- `disabled`: the trigger hook records nothing and starts nothing.
+- `dry_run`: due occurrences start a dry run. No writes, whatever the site config says.
+- `armed`: due occurrences start a live run. Arming takes a checkbox and typing `ARM` in the page. The site config must also have `dry_run: false`, or the run stays a rehearsal. Saving a changed rule, window or blackout puts the trigger back to `dry_run`.
+
+The rule is evaluated in its own IANA timezone, so a noon test stays at noon across daylight saving changes. A due occurrence is also skipped when it falls outside the weekly test windows, when a run is already active or queued, or when the blackout NF schedule is occupied or has a matching special event. If that schedule cannot be read, the occurrence is skipped (`blackout_schedule_unavailable`).
+
+The trigger hook reads the blackout schedule with `GET /api/v1/schedules/{uuid}`. Check that the app's API key can read schedules on your NF version before relying on the blackout.
+
+## Page
+
+The page is served from `static/` at `/api/v1/apps/static/nf-hvac-functional-test/`. It calls the `admin` hook for status, plan preview and trigger edits, `GET /api/v2/command` for active commands, `GET /api/v1/schedules` for the blackout schedule, and the hook run list for history. It writes nothing except the operator actions (abort, retry release, acknowledge, trigger edits). If the hooks cannot be reached it shows STATUS UNKNOWN. `index.html?demo=1` runs the page on fixture data and sends nothing.

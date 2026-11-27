@@ -108,6 +108,14 @@ NF documents `BACNET_PRIORITY` as the command process environment variable (defa
 
 `hooks/tick.js` and `hooks/admin.js` install a factory when a test has not injected one. The factory reads the `siteConfig` option, validates it, and builds the model from the configured point uuids. A binding that uses `query` is resolved with `equip_ref` (and optional markers). An empty query is refused. Discover uses the same rule. The runner is paced, and `vav_index`, `next_retry_at`, and `last_extend_at` are stored in the state file so a new process continues the same batch. `NF_BASE_URL` or the `nfBaseUrl` option selects the on-box API. The default is `http://127.0.0.1:8080`. `dry_run` still defaults to true.
 
+## D23. Scheduled trigger cadence and timezone
+
+The trigger hook runs on a fixed one-minute NF schedule and evaluates the stored rule itself in the rule's timezone (`static/js/core/rrule.js`, shared with the page). Binding the hook directly to a user RRULE would depend on NF's `DTSTART;TZID=` handling, which is not verified; a UTC `DTSTART` with `BYHOUR` would drift an hour at each daylight saving change. The page still shows the equivalent NF RRULE for reference. An occurrence is due for 10 minutes after its time and is handled once (`last_occurrence`). The trigger only queues `pending_start`; the tick hook starts the run through the same path as a manual start, so release behaviour is unchanged.
+
+## D24. Page state view
+
+`lib/machine.js` is unchanged. The page maps its phases to operator states (`static/js/core/stateview.js`): IDLE or SCHEDULED (trigger on), PRECHECK, OVERRIDE (step written but not confirmed), SETTLE, CAPTURE, RELEASE (RELEASING and RECOVERY), REPORT (COMPLETE, ABORTED, FAILED), and NEEDS_ATTENTION off the path. Countdowns come from `step_started_at`, `hold_ms`, `settle_ms` and `max_total_ms` in the admin `status` answer. The admin hook reads the tick hook's state file, because the two hooks run as separate processes.
+
 ## Open questions
 
 Section 11 is still open. Nothing in it was verified against a running NF. `period_boost` stays off.

@@ -319,11 +319,11 @@ Point binding options, in order of precedence per role: the data model (section 
 
 ### 5.3 Data-model-driven planning
 
-The test plan is not hard-coded per site or per box. `lib/plan.js` is a pure function: internal model plus site policy in, ordered steps and a capability report out. The same planner run on a different model produces a different plan.
+The test plan is not hard-coded per site or per box. `hooks/lib/plan.js` is a pure function: internal model plus site policy in, ordered steps and a capability report out. The same planner run on a different model produces a different plan.
 
 Two adapters build the same internal model:
 
-- Haystack tags are the primary input. NF points are read as tag sets and layers. Tags come from a `tags` array, marker values on `attrs` (`m:`, `M`, `marker`, or `true`), and from the `class` and comma-separated `markers` attributes. `equipRef` / `ahuRef` attach the point. `schema/haystack-role-map.json` (version field) maps a tag set to one 223P-derived role. Tag names follow Haystack 4 (`cool` / `heat`, `freezeStat`, `ductStatic`, damper tags without an extra `air` marker). The longest matching tag set wins. A `cmd` marker keeps only roles whose tag set includes `cmd`. If two roles still tie, the point gets no role and is listed on `ambiguous`. Forbidden markers are per role (`max` and `min` on setpoint roles). A site may overlay that file; no code change is required to add a tag set. Role names live only in `lib/roles.js` and this map.
+- Haystack tags are the primary input. NF points are read as tag sets and layers. Tags come from a `tags` array, marker values on `attrs` (`m:`, `M`, `marker`, or `true`), and from the `class` and comma-separated `markers` attributes. `equipRef` / `ahuRef` attach the point. `schema/haystack-role-map.json` (version field) maps a tag set to one 223P-derived role. Tag names follow Haystack 4 (`cool` / `heat`, `freezeStat`, `ductStatic`, damper tags without an extra `air` marker). The longest matching tag set wins. A `cmd` marker keeps only roles whose tag set includes `cmd`. If two roles still tie, the point gets no role and is listed on `ambiguous`. Forbidden markers are per role (`max` and `min` on setpoint roles). A site may overlay that file; no code change is required to add a tag set. Role names live only in `hooks/lib/roles.js` and this map.
 - RDF/223P is not an input in this build. `loadRdfModel` throws `RdfInputDisabledError` (`rdf_input_disabled`) and does not parse Turtle. The hand-written splitter dropped namespaces, kept local names, under-counted triples, and threw on a real 223P export. `schema/rdf-role-map.json` is gone. Those type names were not 223P or Brick terms, and a shared local name such as `brick:Sensor` and `urn:local:Sensor` must not bind the same role. `matchRoleIri` keeps a role only when exactly one full IRI hits the role table. Haystack remains the path that builds a plan.
 
 Writable versus read-only is a model fact, not a per-box branch. A point is model-writable only when it carries a `writable` marker (a `cmd` or `sp` tag alone is not enough). The role registry still has to allow writes. An explicit config binding must also set `writable: true`; that flag cannot promote a point the model marks read-only. If the model says writable and a later priority-array or readback probe disagrees, the point is skipped with `no_priority_array` or `write_not_effective` and is not written.
@@ -474,7 +474,7 @@ Mapping to NF concepts, taken from the public NF docs and the example apps in th
   - `admin`: `MODE_ON_REQUEST`, handles operator actions (`start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`). Arguments are strings (JSON-encode objects).
   - `trigger`: scheduled every minute. Evaluates the stored recurrence in the site timezone, the weekly test windows and the NF schedule blackout, then queues a start for the tick hook. Off by default (`disabled`, `dry_run`, `armed`). Global variables `ftest_trigger_mode` and `ftest_trigger_next`. See decision D23.
   - `shutdown` handling: the tick hook registers a best-effort SIGTERM handler that releases.
-- **Static UI**: an operator page under `static/` served at `/api/v1/apps/static/<app-id>/`: state machine with countdowns, schedule editor with a weekly grid and NF schedule overlay, air path and device view of what each step writes, active NF commands, and run history. Plain JavaScript and the vendored ECharts build, same theme tokens as the Open-FDD NF app. `static/js/core/` holds pure modules used by both the page and the hooks. Through the Normal Online portal, page requests need the console token (see the Open-FDD NF app's client for a working pattern); the LAN path works with the NF console session.
+- **Static UI**: an operator page under `static/` served at `/api/v1/apps/static/<app-id>/`: state machine with countdowns, schedule editor with a weekly grid and NF schedule overlay, air path and device view of what each step writes, active NF commands, and run history. Plain JavaScript and the vendored ECharts build, same theme tokens as the Open-FDD NF app. `static/` holds pure modules used by both the page and the hooks. The digital twin tab is described in DECISIONS D25 and D26. Through the Normal Online portal, page requests need the console token (see the Open-FDD NF app's client for a working pattern); the LAN path works with the NF console session.
 - **Settings**: NF app options (`siteConfig` JSON string, `enabled`, `logLevel`). Hook settings are options, not hook config.
 - **Persistence**: `local/` under the app directory for the ledger and manifests (the nf-snmp app uses the same pattern).
 - **Modeling**: the app reads the Haystack model through the point query API for optional role binding. It does not tag or create equipment.
@@ -487,7 +487,7 @@ app.json
 package.json
 hooks-update/{tick,admin,trigger}.json
 hooks/{tick,admin,trigger}.js          thin adapters: load config, build runner, call it
-lib/
+hooks/lib/
   config/        schema + validate
   roles.js       role registry, units, directions, clamps
   resolve.js     role binding and unit conversion
@@ -502,9 +502,12 @@ lib/
   manifest.js
   nf/            client.js (REST), types
 schema/site-config.schema.json
-static/          operator page (js/core: rrule, timetable, trigger, stateview, touchmap)
-test/            unit, integration with fake NF, safety invariants
-test/fake/       fake NF and BACnet backend (section 9)
+static/          operator page; pure modules shared with hooks and tests (rrule, timetable, trigger, stateview,
+                 touchmap); digital twin (s223, haystack-bind, tags-223p, model-source, twin, twin-scene, twin-view)
+static/vendor/   echarts, oxigraph 0.5.13, three 0.170.0, open-fdd (model.js, paging.js, unmodified)
+tests/           *.test.mjs: unit, integration with fake NF, safety invariants
+tests/fixtures/  fake NF and BACnet backend (section 9), RDF fixtures, Open-FDD rdf hook (contract tests)
+types/           page globals for tsc
 docs/
 ```
 

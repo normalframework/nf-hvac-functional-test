@@ -1,0 +1,10 @@
+{
+  // CommonJS hooks, their libraries and the build scripts. Stricter than the page program: this is the code that
+  // writes overrides and releases them.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true
+  },
+  "include": ["hooks/**/*.js", "scripts/**/*.js"]
+}

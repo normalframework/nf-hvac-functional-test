@@ -1,17 +1,13 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "lib": ["ES2022"],
-    "allowJs": true,
-    "checkJs": true,
-    "noEmit": true,
-    "strict": true,
-    "noImplicitAny": false,
-    "noImplicitOverride": true,
-    "types": ["node"],
-    "skipLibCheck": true
-  },
-  "include": ["lib/**/*.js", "scripts/**/*.js", "test/**/*.js"]
+  // Main page: static/index.html (script order). static/vendor/** is never listed.
+  "extends": "./tsconfig.base.json",
+  "files": [
+    "types/globals.d.ts",
+    "static/theme-init.js",
+    "static/rrule.js", "static/timetable.js", "static/trigger.js", "static/stateview.js", "static/touchmap.js",
+    "static/roles-223p.js", "static/s223.js",
+    "static/demo-data.js", "static/demo.js", "static/api.js", "static/dom.js", "static/machine-view.js", "static/week-grid.js",
+    "static/schedule-view.js", "static/airpath.js", "static/history-view.js",
+    "static/haystack-bind.js", "static/tags-223p.js", "static/model-source.js", "static/twin.js", "static/twin-view.js", "static/app.js"
+  ]
 }

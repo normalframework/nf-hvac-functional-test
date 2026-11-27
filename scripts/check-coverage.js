@@ -9,52 +9,57 @@ const LCOV = path.join(ROOT, 'coverage', 'lcov.info');
 const LINE_FLOOR = 90;
 
 const ALWAYS = [
-  'lib/roles.js',
-  'lib/units.js',
-  'lib/config/allowlist.js',
-  'lib/config/defaults.js',
-  'lib/config/errors.js',
-  'lib/config/gates.js',
-  'lib/config/index.js',
-  'lib/config/priority.js',
-  'lib/config/schema.js',
-  'lib/config/semantic.js',
-  'lib/model/errors.js',
-  'lib/model/map.js',
-  'lib/model/haystack.js',
-  'lib/model/rdf.js',
-  'lib/model/role_iri.js',
-  'lib/model/role_pin.js',
-  'lib/model/writable.js',
-  'lib/model/vocabulary.js',
-  'lib/roles_sync.js',
-  'lib/runtime.js',
-  'lib/model/index.js',
-  'lib/plan.js',
-  'lib/nf/client.js',
-  'lib/nf/duration.js',
-  'lib/run_seq.js',
-  'lib/ulid.js',
-  'lib/manifest.js',
-  'lib/trigger_store.js',
-  'lib/trigger_run.js',
-  'static/js/core/rrule.js',
-  'static/js/core/timetable.js',
-  'static/js/core/trigger.js',
-  'static/js/core/stateview.js',
-  'static/js/core/touchmap.js',
+  'hooks/lib/roles.js',
+  'hooks/lib/units.js',
+  'hooks/lib/config/allowlist.js',
+  'hooks/lib/config/defaults.js',
+  'hooks/lib/config/errors.js',
+  'hooks/lib/config/gates.js',
+  'hooks/lib/config/index.js',
+  'hooks/lib/config/priority.js',
+  'hooks/lib/config/schema.js',
+  'hooks/lib/config/semantic.js',
+  'hooks/lib/model/errors.js',
+  'hooks/lib/model/map.js',
+  'hooks/lib/model/haystack.js',
+  'hooks/lib/model/rdf.js',
+  'hooks/lib/model/role_iri.js',
+  'hooks/lib/model/role_pin.js',
+  'hooks/lib/model/writable.js',
+  'hooks/lib/model/vocabulary.js',
+  'hooks/lib/roles_sync.js',
+  'hooks/lib/runtime.js',
+  'hooks/lib/model/index.js',
+  'hooks/lib/plan.js',
+  'hooks/lib/nf/client.js',
+  'hooks/lib/nf/duration.js',
+  'hooks/lib/run_seq.js',
+  'hooks/lib/ulid.js',
+  'hooks/lib/manifest.js',
+  'hooks/lib/trigger_store.js',
+  'hooks/lib/trigger_run.js',
+  'static/rrule.js',
+  'static/timetable.js',
+  'static/trigger.js',
+  'static/stateview.js',
+  'static/touchmap.js',
+  'static/s223.js',
+  'static/haystack-bind.js',
+  'static/tags-223p.js',
+  'static/model-source.js',
+  'static/twin.js',
 ];
 
 const WHEN_PRESENT = [
-  'lib/machine.js',
-  'lib/ledger.js',
-  'lib/runner.js',
-  'lib/interlocks.js',
-  'lib/writers/nf_command.js',
-  'lib/writers/bacnet_direct.js',
-  'lib/writers/dry_run.js',
-  'lib/writers/verify.js',
-  'lib/writers/release.js',
+  'hooks/lib/machine.js',
+  'hooks/lib/ledger.js',
+  'hooks/lib/runner.js',
+  'hooks/lib/interlocks.js',
+  'hooks/lib/writers/nf_command.js',
+  'hooks/lib/writers/bacnet_direct.js',
+  'hooks/lib/writers/dry_run.js',
+  'hooks/lib/writers/verify.js',
+  'hooks/lib/writers/release.js',
 ];
 
 /**
@@ -91,10 +96,10 @@ function normalize(file) {
 }
 
 function testFiles() {
-  return fs.readdirSync(path.join(ROOT, 'test'))
-    .filter((name) => name.endsWith('.test.js'))
+  return fs.readdirSync(path.join(ROOT, 'tests'))
+    .filter((name) => name.endsWith('.test.mjs'))
     .sort()
-    .map((name) => `test/${name}`);
+    .map((name) => `tests/${name}`);
 }
 
 function main() {

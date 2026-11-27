@@ -1,0 +1,591 @@
+# Demo 223P model for the digital twin: one air handler feeding three single-duct terminals.
+# The page builds the 3D scene, the controls and the stroke test from this graph alone; replace it with a
+# site's 223P Turtle and the view follows. Property patterns follow the Open-FDD role vocabulary.
+@prefix s223: <http://data.ashrae.org/standard223#> .
+@prefix qudt: <http://qudt.org/schema/qudt/> .
+@prefix quantitykind: <http://qudt.org/vocab/quantitykind/> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ext: <urn:openfdd:ext#> .
+@prefix bldg: <urn:demo-site:> .
+
+
+# ---- Air handler ----
+bldg:ahu_1 a s223:AirHandlingUnit ;
+    rdfs:label "AHU-1" ;
+    s223:contains bldg:oa_damper, bldg:ra_damper, bldg:mixing, bldg:filter, bldg:clg_coil, bldg:clg_valve, bldg:htg_coil, bldg:htg_valve, bldg:supply_fan .
+bldg:ahu_1_in_oa a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:ahu_1 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-OutdoorAirIntake .
+bldg:ahu_1 s223:hasConnectionPoint bldg:ahu_1_in_oa .
+bldg:ahu_1_in_ra a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:ahu_1 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-Return .
+bldg:ahu_1 s223:hasConnectionPoint bldg:ahu_1_in_ra .
+bldg:ahu_1_out_sa a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:ahu_1 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-Discharge .
+bldg:ahu_1 s223:hasConnectionPoint bldg:ahu_1_out_sa .
+bldg:ahu_1_in_oa s223:mapsTo bldg:oa_damper_in .
+bldg:ahu_1_in_ra s223:mapsTo bldg:ra_damper_in .
+bldg:ahu_1_out_sa s223:mapsTo bldg:supply_fan_out .
+bldg:oat a s223:QuantifiableObservableProperty ;
+    rdfs:label "Outdoor air temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:ahu_1_in_oa s223:hasProperty bldg:oat .
+bldg:rat a s223:QuantifiableObservableProperty ;
+    rdfs:label "Return air temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:ahu_1_in_ra s223:hasProperty bldg:rat .
+bldg:dat a s223:QuantifiableObservableProperty ;
+    rdfs:label "Discharge air temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:dat_sensor a s223:TemperatureSensor ;
+    s223:observes bldg:dat ;
+    s223:hasObservationLocation bldg:ahu_1_out_sa .
+bldg:dsp a s223:QuantifiableObservableProperty ;
+    rdfs:label "Duct static pressure" ;
+    qudt:hasQuantityKind quantitykind:StaticPressure ;
+    qudt:hasUnit unit:PA ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:dsp_sensor a s223:PressureSensor ;
+    s223:observes bldg:dsp ;
+    s223:hasObservationLocation bldg:ahu_1_out_sa .
+bldg:mat a s223:QuantifiableObservableProperty ;
+    rdfs:label "Mixed air temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    s223:hasAspect ext:Mixed ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:ahu_1 s223:hasProperty bldg:mat .
+bldg:oa_damper a s223:Damper ;
+    rdfs:label "Outdoor air damper" ;
+    s223:hasRole s223:Role-OutdoorAirIntake .
+bldg:oa_damper_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:oa_damper ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:oa_damper s223:hasConnectionPoint bldg:oa_damper_in .
+bldg:oa_damper_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:oa_damper ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:oa_damper s223:hasConnectionPoint bldg:oa_damper_out .
+bldg:oa_damper_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Outdoor air damper command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:oa_damper s223:hasProperty bldg:oa_damper_cmd .
+bldg:oa_damper_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "Outdoor air damper position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:oa_damper s223:hasProperty bldg:oa_damper_pos .
+bldg:ra_damper a s223:Damper ;
+    rdfs:label "Return air damper" ;
+    s223:hasRole s223:Role-Return .
+bldg:ra_damper_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:ra_damper ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:ra_damper s223:hasConnectionPoint bldg:ra_damper_in .
+bldg:ra_damper_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:ra_damper ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:ra_damper s223:hasConnectionPoint bldg:ra_damper_out .
+bldg:ra_damper_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Return air damper command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:ra_damper s223:hasProperty bldg:ra_damper_cmd .
+bldg:ra_damper_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "Return air damper position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:ra_damper s223:hasProperty bldg:ra_damper_pos .
+bldg:mixing a s223:Junction ;
+    rdfs:label "Mixing plenum" .
+bldg:mixing_in_oa a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:mixing ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:mixing s223:hasConnectionPoint bldg:mixing_in_oa .
+bldg:mixing_in_ra a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:mixing ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:mixing s223:hasConnectionPoint bldg:mixing_in_ra .
+bldg:mixing_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:mixing ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:mixing s223:hasConnectionPoint bldg:mixing_out .
+bldg:filter a s223:Filter ;
+    rdfs:label "Filter bank" .
+bldg:filter_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:filter ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:filter s223:hasConnectionPoint bldg:filter_in .
+bldg:filter_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:filter ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:filter s223:hasConnectionPoint bldg:filter_out .
+bldg:filter_dp a s223:QuantifiableObservableProperty ;
+    rdfs:label "Filter differential pressure" ;
+    qudt:hasQuantityKind quantitykind:Pressure ;
+    s223:hasAspect s223:Aspect-Delta ;
+    qudt:hasUnit unit:PA ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:filter s223:hasProperty bldg:filter_dp .
+bldg:clg_coil a s223:CoolingCoil ;
+    rdfs:label "Cooling coil" .
+bldg:clg_coil_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:clg_coil ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:clg_coil s223:hasConnectionPoint bldg:clg_coil_in .
+bldg:clg_coil_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:clg_coil ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:clg_coil s223:hasConnectionPoint bldg:clg_coil_out .
+bldg:clg_coil_in_water a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:clg_coil ;
+    s223:hasMedium s223:Water-ChilledWater .
+bldg:clg_coil s223:hasConnectionPoint bldg:clg_coil_in_water .
+bldg:clg_valve a s223:Valve ;
+    rdfs:label "Cooling valve" ;
+    s223:hasRole s223:Role-Cooling .
+bldg:clg_valve_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:clg_valve ;
+    s223:hasMedium s223:Water-ChilledWater .
+bldg:clg_valve s223:hasConnectionPoint bldg:clg_valve_out .
+bldg:clg_valve_pipe a s223:Pipe ;
+    s223:hasMedium s223:Water-ChilledWater ;
+    s223:connectsAt bldg:clg_valve_out, bldg:clg_coil_in_water .
+bldg:clg_valve_out s223:connectsThrough bldg:clg_valve_pipe .
+bldg:clg_coil_in_water s223:connectsThrough bldg:clg_valve_pipe .
+bldg:clg_valve_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Cooling valve command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:clg_valve s223:hasProperty bldg:clg_valve_cmd .
+bldg:clg_valve_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "Cooling valve position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:clg_valve s223:hasProperty bldg:clg_valve_pos .
+bldg:htg_coil a s223:HeatingCoil ;
+    rdfs:label "Heating coil" .
+bldg:htg_coil_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:htg_coil ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:htg_coil s223:hasConnectionPoint bldg:htg_coil_in .
+bldg:htg_coil_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:htg_coil ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:htg_coil s223:hasConnectionPoint bldg:htg_coil_out .
+bldg:htg_coil_in_water a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:htg_coil ;
+    s223:hasMedium s223:Water-HotWater .
+bldg:htg_coil s223:hasConnectionPoint bldg:htg_coil_in_water .
+bldg:htg_valve a s223:Valve ;
+    rdfs:label "Heating valve" ;
+    s223:hasRole s223:Role-Heating .
+bldg:htg_valve_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:htg_valve ;
+    s223:hasMedium s223:Water-HotWater .
+bldg:htg_valve s223:hasConnectionPoint bldg:htg_valve_out .
+bldg:htg_valve_pipe a s223:Pipe ;
+    s223:hasMedium s223:Water-HotWater ;
+    s223:connectsAt bldg:htg_valve_out, bldg:htg_coil_in_water .
+bldg:htg_valve_out s223:connectsThrough bldg:htg_valve_pipe .
+bldg:htg_coil_in_water s223:connectsThrough bldg:htg_valve_pipe .
+bldg:htg_valve_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Heating valve command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:htg_valve s223:hasProperty bldg:htg_valve_cmd .
+bldg:htg_valve_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "Heating valve position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:htg_valve s223:hasProperty bldg:htg_valve_pos .
+bldg:supply_fan a s223:Fan ;
+    rdfs:label "Supply fan" ;
+    s223:hasRole s223:Role-Supply .
+bldg:supply_fan_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:supply_fan ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:supply_fan s223:hasConnectionPoint bldg:supply_fan_in .
+bldg:supply_fan_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:supply_fan ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:supply_fan s223:hasConnectionPoint bldg:supply_fan_out .
+bldg:sf_speed a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Supply fan speed command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect ext:Speed ;
+    qudt:hasUnit unit:PERCENT .
+bldg:supply_fan s223:hasProperty bldg:sf_speed .
+bldg:sf_cmd a s223:EnumeratedActuatableProperty ;
+    rdfs:label "Supply fan start/stop" ;
+    s223:hasEnumerationKind s223:Binary-OnOff .
+bldg:supply_fan s223:hasProperty bldg:sf_cmd .
+bldg:sf_status a s223:EnumeratedObservableProperty ;
+    rdfs:label "Supply fan status" ;
+    s223:hasEnumerationKind s223:Binary-OnOff ;
+    s223:hasAspect s223:Aspect-OperatingStatus .
+bldg:supply_fan s223:hasProperty bldg:sf_status .
+bldg:d_oa a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:oa_damper_out, bldg:mixing_in_oa .
+bldg:oa_damper_out s223:connectsThrough bldg:d_oa .
+bldg:mixing_in_oa s223:connectsThrough bldg:d_oa .
+bldg:d_ra a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:ra_damper_out, bldg:mixing_in_ra .
+bldg:ra_damper_out s223:connectsThrough bldg:d_ra .
+bldg:mixing_in_ra s223:connectsThrough bldg:d_ra .
+bldg:d_mix a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:mixing_out, bldg:filter_in .
+bldg:mixing_out s223:connectsThrough bldg:d_mix .
+bldg:filter_in s223:connectsThrough bldg:d_mix .
+bldg:d_f a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:filter_out, bldg:clg_coil_in .
+bldg:filter_out s223:connectsThrough bldg:d_f .
+bldg:clg_coil_in s223:connectsThrough bldg:d_f .
+bldg:d_c a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:clg_coil_out, bldg:htg_coil_in .
+bldg:clg_coil_out s223:connectsThrough bldg:d_c .
+bldg:htg_coil_in s223:connectsThrough bldg:d_c .
+bldg:d_h a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:connectsAt bldg:htg_coil_out, bldg:supply_fan_in .
+bldg:htg_coil_out s223:connectsThrough bldg:d_h .
+bldg:supply_fan_in s223:connectsThrough bldg:d_h .
+
+# ---- Supply duct ----
+bldg:sa_split a s223:Junction ;
+    rdfs:label "Supply split" .
+bldg:sa_split_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:sa_split ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:sa_split s223:hasConnectionPoint bldg:sa_split_in .
+bldg:d_trunk a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Supply trunk" ;
+    s223:connectsAt bldg:supply_fan_out, bldg:sa_split_in .
+bldg:supply_fan_out s223:connectsThrough bldg:d_trunk .
+bldg:sa_split_in s223:connectsThrough bldg:d_trunk .
+bldg:sa_split_out_vav_01 a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:sa_split ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:sa_split s223:hasConnectionPoint bldg:sa_split_out_vav_01 .
+
+# VAV-01 Office
+bldg:vav_01 a s223:SingleDuctTerminal ;
+    rdfs:label "VAV-01 Office" ;
+    s223:contains bldg:vav_01_damper, bldg:vav_01_rhc, bldg:vav_01_rhv .
+bldg:vav_01_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_01 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:vav_01 s223:hasConnectionPoint bldg:vav_01_in .
+bldg:vav_01_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_01 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-Discharge .
+bldg:vav_01 s223:hasConnectionPoint bldg:vav_01_out .
+bldg:d_vav_01 a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Branch to VAV-01 Office" ;
+    s223:connectsAt bldg:sa_split_out_vav_01, bldg:vav_01_in .
+bldg:sa_split_out_vav_01 s223:connectsThrough bldg:d_vav_01 .
+bldg:vav_01_in s223:connectsThrough bldg:d_vav_01 .
+bldg:vav_01_damper a s223:Damper ;
+    rdfs:label "VAV-01 Office damper" .
+bldg:vav_01_dmp_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-01 Office damper command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_01_damper s223:hasProperty bldg:vav_01_dmp_cmd .
+bldg:vav_01_dmp_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-01 Office damper position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_01_damper s223:hasProperty bldg:vav_01_dmp_pos .
+bldg:vav_01_rhc a s223:HeatingCoil ;
+    rdfs:label "VAV-01 Office reheat coil" .
+bldg:vav_01_rhv a s223:Valve ;
+    rdfs:label "VAV-01 Office reheat valve" ;
+    s223:hasRole s223:Role-Heating .
+bldg:vav_01_rhv_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-01 Office reheat valve command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_01_rhv s223:hasProperty bldg:vav_01_rhv_cmd .
+bldg:vav_01_flow a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-01 Office airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_01_out s223:hasProperty bldg:vav_01_flow .
+bldg:vav_01_dat a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-01 Office discharge temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_01_out s223:hasProperty bldg:vav_01_dat .
+bldg:vav_01_flow_max a s223:QuantifiableActuatableProperty ;
+    s223:hasAspect s223:Role-Discharge ;
+    rdfs:label "VAV-01 Office maximum airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    s223:hasAspect s223:Aspect-Maximum ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "425"^^xsd:decimal .
+bldg:vav_01 s223:hasProperty bldg:vav_01_flow_max .
+bldg:space_01 a s223:DomainSpace ;
+    rdfs:label "Office" .
+bldg:space_01_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:space_01 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:space_01 s223:hasConnectionPoint bldg:space_01_in .
+bldg:zone_01 a s223:Zone ;
+    rdfs:label "Office zone" ;
+    s223:hasDomainSpace bldg:space_01 .
+bldg:d_vav_01_out a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Office supply" ;
+    s223:connectsAt bldg:vav_01_out, bldg:space_01_in .
+bldg:vav_01_out s223:connectsThrough bldg:d_vav_01_out .
+bldg:space_01_in s223:connectsThrough bldg:d_vav_01_out .
+bldg:space_01_temp a s223:QuantifiableObservableProperty ;
+    rdfs:label "Office temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:space_01 s223:hasProperty bldg:space_01_temp .
+bldg:space_01_sp a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Office temperature setpoint" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    s223:hasAspect s223:Aspect-Setpoint ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "22.5"^^xsd:decimal .
+bldg:space_01 s223:hasProperty bldg:space_01_sp .
+bldg:sa_split_out_vav_02 a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:sa_split ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:sa_split s223:hasConnectionPoint bldg:sa_split_out_vav_02 .
+
+# VAV-02 Conference
+bldg:vav_02 a s223:SingleDuctTerminal ;
+    rdfs:label "VAV-02 Conference" ;
+    s223:contains bldg:vav_02_damper, bldg:vav_02_rhc, bldg:vav_02_rhv .
+bldg:vav_02_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_02 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:vav_02 s223:hasConnectionPoint bldg:vav_02_in .
+bldg:vav_02_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_02 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-Discharge .
+bldg:vav_02 s223:hasConnectionPoint bldg:vav_02_out .
+bldg:d_vav_02 a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Branch to VAV-02 Conference" ;
+    s223:connectsAt bldg:sa_split_out_vav_02, bldg:vav_02_in .
+bldg:sa_split_out_vav_02 s223:connectsThrough bldg:d_vav_02 .
+bldg:vav_02_in s223:connectsThrough bldg:d_vav_02 .
+bldg:vav_02_damper a s223:Damper ;
+    rdfs:label "VAV-02 Conference damper" .
+bldg:vav_02_dmp_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-02 Conference damper command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_02_damper s223:hasProperty bldg:vav_02_dmp_cmd .
+bldg:vav_02_dmp_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-02 Conference damper position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_02_damper s223:hasProperty bldg:vav_02_dmp_pos .
+bldg:vav_02_rhc a s223:HeatingCoil ;
+    rdfs:label "VAV-02 Conference reheat coil" .
+bldg:vav_02_rhv a s223:Valve ;
+    rdfs:label "VAV-02 Conference reheat valve" ;
+    s223:hasRole s223:Role-Heating .
+bldg:vav_02_rhv_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-02 Conference reheat valve command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_02_rhv s223:hasProperty bldg:vav_02_rhv_cmd .
+bldg:vav_02_flow a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-02 Conference airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_02_out s223:hasProperty bldg:vav_02_flow .
+bldg:vav_02_dat a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-02 Conference discharge temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_02_out s223:hasProperty bldg:vav_02_dat .
+bldg:vav_02_flow_max a s223:QuantifiableActuatableProperty ;
+    s223:hasAspect s223:Role-Discharge ;
+    rdfs:label "VAV-02 Conference maximum airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    s223:hasAspect s223:Aspect-Maximum ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "600"^^xsd:decimal .
+bldg:vav_02 s223:hasProperty bldg:vav_02_flow_max .
+bldg:space_02 a s223:DomainSpace ;
+    rdfs:label "Conference" .
+bldg:space_02_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:space_02 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:space_02 s223:hasConnectionPoint bldg:space_02_in .
+bldg:zone_02 a s223:Zone ;
+    rdfs:label "Conference zone" ;
+    s223:hasDomainSpace bldg:space_02 .
+bldg:d_vav_02_out a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Conference supply" ;
+    s223:connectsAt bldg:vav_02_out, bldg:space_02_in .
+bldg:vav_02_out s223:connectsThrough bldg:d_vav_02_out .
+bldg:space_02_in s223:connectsThrough bldg:d_vav_02_out .
+bldg:space_02_temp a s223:QuantifiableObservableProperty ;
+    rdfs:label "Conference temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:space_02 s223:hasProperty bldg:space_02_temp .
+bldg:space_02_sp a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Conference temperature setpoint" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    s223:hasAspect s223:Aspect-Setpoint ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "22.5"^^xsd:decimal .
+bldg:space_02 s223:hasProperty bldg:space_02_sp .
+bldg:sa_split_out_vav_03 a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:sa_split ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:sa_split s223:hasConnectionPoint bldg:sa_split_out_vav_03 .
+
+# VAV-03 Corridor
+bldg:vav_03 a s223:SingleDuctTerminal ;
+    rdfs:label "VAV-03 Corridor" ;
+    s223:contains bldg:vav_03_damper, bldg:vav_03_rhc, bldg:vav_03_rhv .
+bldg:vav_03_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_03 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:vav_03 s223:hasConnectionPoint bldg:vav_03_in .
+bldg:vav_03_out a s223:OutletConnectionPoint ;
+    s223:isConnectionPointOf bldg:vav_03 ;
+    s223:hasMedium s223:Fluid-Air ;
+    s223:hasRole s223:Role-Discharge .
+bldg:vav_03 s223:hasConnectionPoint bldg:vav_03_out .
+bldg:d_vav_03 a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Branch to VAV-03 Corridor" ;
+    s223:connectsAt bldg:sa_split_out_vav_03, bldg:vav_03_in .
+bldg:sa_split_out_vav_03 s223:connectsThrough bldg:d_vav_03 .
+bldg:vav_03_in s223:connectsThrough bldg:d_vav_03 .
+bldg:vav_03_damper a s223:Damper ;
+    ext:simFault "stuck:38" ;
+    rdfs:label "VAV-03 Corridor damper" .
+bldg:vav_03_dmp_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-03 Corridor damper command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_03_damper s223:hasProperty bldg:vav_03_dmp_cmd .
+bldg:vav_03_dmp_pos a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-03 Corridor damper position" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_03_damper s223:hasProperty bldg:vav_03_dmp_pos .
+bldg:vav_03_rhc a s223:HeatingCoil ;
+    rdfs:label "VAV-03 Corridor reheat coil" .
+bldg:vav_03_rhv a s223:Valve ;
+    rdfs:label "VAV-03 Corridor reheat valve" ;
+    s223:hasRole s223:Role-Heating .
+bldg:vav_03_rhv_cmd a s223:QuantifiableActuatableProperty ;
+    rdfs:label "VAV-03 Corridor reheat valve command" ;
+    qudt:hasQuantityKind quantitykind:DimensionlessRatio ;
+    s223:hasAspect s223:Binary-Position ;
+    qudt:hasUnit unit:PERCENT .
+bldg:vav_03_rhv s223:hasProperty bldg:vav_03_rhv_cmd .
+bldg:vav_03_flow a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-03 Corridor airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_03_out s223:hasProperty bldg:vav_03_flow .
+bldg:vav_03_dat a s223:QuantifiableObservableProperty ;
+    rdfs:label "VAV-03 Corridor discharge temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:vav_03_out s223:hasProperty bldg:vav_03_dat .
+bldg:vav_03_flow_max a s223:QuantifiableActuatableProperty ;
+    s223:hasAspect s223:Role-Discharge ;
+    rdfs:label "VAV-03 Corridor maximum airflow" ;
+    qudt:hasQuantityKind quantitykind:VolumeFlowRate ;
+    s223:hasAspect s223:Aspect-Maximum ;
+    qudt:hasUnit unit:L-PER-SEC ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "180"^^xsd:decimal .
+bldg:vav_03 s223:hasProperty bldg:vav_03_flow_max .
+bldg:space_03 a s223:DomainSpace ;
+    rdfs:label "Corridor" .
+bldg:space_03_in a s223:InletConnectionPoint ;
+    s223:isConnectionPointOf bldg:space_03 ;
+    s223:hasMedium s223:Fluid-Air .
+bldg:space_03 s223:hasConnectionPoint bldg:space_03_in .
+bldg:zone_03 a s223:Zone ;
+    rdfs:label "Corridor zone" ;
+    s223:hasDomainSpace bldg:space_03 .
+bldg:d_vav_03_out a s223:Duct ;
+    s223:hasMedium s223:Fluid-Air ;
+    rdfs:label "Corridor supply" ;
+    s223:connectsAt bldg:vav_03_out, bldg:space_03_in .
+bldg:vav_03_out s223:connectsThrough bldg:d_vav_03_out .
+bldg:space_03_in s223:connectsThrough bldg:d_vav_03_out .
+bldg:space_03_temp a s223:QuantifiableObservableProperty ;
+    rdfs:label "Corridor temperature" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air .
+bldg:space_03 s223:hasProperty bldg:space_03_temp .
+bldg:space_03_sp a s223:QuantifiableActuatableProperty ;
+    rdfs:label "Corridor temperature setpoint" ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
+    s223:hasAspect s223:Aspect-Setpoint ;
+    qudt:hasUnit unit:DEG_C ;
+    s223:ofMedium s223:Fluid-Air ;
+    s223:hasValue "22.5"^^xsd:decimal .
+bldg:space_03 s223:hasProperty bldg:space_03_sp .

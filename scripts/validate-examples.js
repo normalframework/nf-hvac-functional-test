@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { validateSiteConfig } = require('../lib/config');
+const { validateSiteConfig } = require('../hooks/lib/config');
 
 const dir = path.join(__dirname, '..', 'examples');
 const files = fs.readdirSync(dir).filter((name) => name.endsWith('.json'));

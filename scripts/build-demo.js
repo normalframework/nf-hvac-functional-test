@@ -1,15 +1,15 @@
 'use strict';
 
-// Writes static/js/demo-data.js: the page's demo mode fixture. The plan comes from the real planner run on
+// Writes static/demo-data.js: the page's demo mode fixture. The plan comes from the real planner run on
 // examples/site-config.example.json (VAV step on), so the demo shows what this code would do, not a mock-up.
 // `node scripts/build-demo.js --check` fails when the file is stale.
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { adminAction, createSession } = require('../lib/admin');
+const { adminAction, createSession } = require('../hooks/lib/admin');
 
 const ROOT = path.join(__dirname, '..');
-const OUT = path.join(ROOT, 'static', 'js', 'demo-data.js');
+const OUT = path.join(ROOT, 'static', 'demo-data.js');
 
 function demoConfig() {
   const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'examples', 'site-config.example.json'), 'utf8'));
@@ -78,7 +78,7 @@ async function main() {
   if (process.argv.includes('--check')) {
     const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
     if (current !== text) {
-      console.error('demo: static/js/demo-data.js is stale; run node scripts/build-demo.js');
+      console.error('demo: static/demo-data.js is stale; run node scripts/build-demo.js');
       return 1;
     }
     console.log('demo: up to date');

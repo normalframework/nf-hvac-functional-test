@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { assertPinReady, assertSameRoleNames, readOpenfddPin, roleNames } = require('../lib/roles_sync');
+const { assertPinReady, assertSameRoleNames, readOpenfddPin, roleNames } = require('../hooks/lib/roles_sync');
 
 const ROOT = path.join(__dirname, '..');
 

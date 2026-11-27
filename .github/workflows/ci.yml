@@ -1,31 +1,61 @@
+# NF app gate: lint, type-check, unit tests, coverage floor, generated files, examples, scans.
+# Same structure and pinned actions as the Open-FDD NF app CI (nf-app-ci.yml). The job keeps its
+# `test (20)` / `test (22)` names because the main branch ruleset requires those two checks.
 name: ci
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
-      - 'v0.1/**'
+    branches: [main, "v0.1/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
+    name: test (${{ matrix.node }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         node: [20, 22]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run coverage
-      - run: npm run validate:examples
-      - run: npm run scan
-      - run: npm run roles:sync
-      - run: npm audit --audit-level=high
+
+      - name: Install npm dependencies (lockfile)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check (tsc --noEmit over JSDoc-typed JS)
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Coverage floor
+        run: npm run coverage
+
+      - name: Generated files and examples
+        run: |
+          node scripts/build-demo.js --check
+          node scripts/build-roles-223p.js --check
+          npm run validate:examples
+          npm run roles:sync
+
+      - name: Forbidden identifiers and audit
+        run: |
+          npm run scan
+          npm audit --audit-level=high

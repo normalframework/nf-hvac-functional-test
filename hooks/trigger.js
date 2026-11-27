@@ -1,10 +1,10 @@
 'use strict';
 
-const { createSession } = require('../lib/admin');
-const { ensureRuntime } = require('../lib/runtime');
-const { runTrigger } = require('../lib/trigger_run');
-const { readTrigger } = require('../lib/trigger_store');
-const Rrule = require('../static/js/core/rrule.js');
+const { createSession } = require('./lib/admin');
+const { ensureRuntime } = require('./lib/runtime');
+const { runTrigger } = require('./lib/trigger_run');
+const { readTrigger } = require('./lib/trigger_store');
+const Rrule = require('../static/rrule.js');
 
 /** @type {any} */
 let session = createSession();

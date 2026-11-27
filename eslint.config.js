@@ -5,7 +5,7 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'coverage/**', 'local/**', 'static/vendor/**'],
+    ignores: ['node_modules/**', 'coverage/**', 'local/**', 'static/vendor/**', 'tests/fixtures/open-fdd/**'],
   },
   js.configs.recommended,
   {
@@ -31,7 +31,11 @@ module.exports = [
     },
   },
   {
-    files: ['static/echarts-global.js'],
+    files: ['static/echarts-global.js', 'static/twin-scene.js'],
     languageOptions: { sourceType: 'module' },
+  },
+  {
+    files: ['**/*.mjs'],
+    languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: { ...globals.node } },
   },
 ];

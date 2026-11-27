@@ -47,3 +47,5 @@ The trigger hook reads the blackout schedule with `GET /api/v1/schedules/{uuid}`
 ## Page
 
 The page is served from `static/` at `/api/v1/apps/static/nf-hvac-functional-test/`. It calls the `admin` hook for status, plan preview and trigger edits, `GET /api/v2/command` for active commands, `GET /api/v1/schedules` for the blackout schedule, and the hook run list for history. It writes nothing except the operator actions (abort, retry release, acknowledge, trigger edits). If the hooks cannot be reached it shows STATUS UNKNOWN. `index.html?demo=1` runs the page on fixture data and sends nothing.
+
+The Digital twin tab reads `POST /api/v1/point/query` (model layer, then each site's default layer) and, when the Open-FDD app is installed, starts Open-FDD's read-only `rdf` hook. It needs no configuration and no Open-FDD install. The page CSP allows `'wasm-unsafe-eval'` for Oxigraph's WebAssembly build.

@@ -1,0 +1,15 @@
+{
+  "name": "three",
+  "description": "JavaScript 3D library (vendored build/three.module.min.js and examples/jsm/controls/OrbitControls.js)",
+  "version": "0.170.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrdoob/three.js"
+  },
+  "files": [
+    "three.module.min.js",
+    "OrbitControls.js"
+  ],
+  "browser": "three.module.min.js"
+}

@@ -1,7 +1,7 @@
 'use strict';
 
-const { adminAction, createSession } = require('../lib/admin');
-const { ensureRuntime } = require('../lib/runtime');
+const { adminAction, createSession } = require('./lib/admin');
+const { ensureRuntime } = require('./lib/runtime');
 
 /** @type {any} */
 let session = createSession();

@@ -1,0 +1,687 @@
+{
+ "note": "Demo NF records (point/query, model and default layers): one air handler and three terminals, tagged with Haystack 4 markers. Synthetic; no real site. The twin derives its 223P model from these tags exactly as it does from a live NF.",
+ "model": [
+  {
+   "uuid": "1e3e9118-3a71-5a01-8cfd-5e0db19a8fdf",
+   "name": "demo-site",
+   "pointType": "SITE",
+   "attrs": {
+    "id": "demo-site",
+    "dis": "Demo site",
+    "markers": "site"
+   }
+  },
+  {
+   "uuid": "958e3deb-91d3-54f3-bbbf-03e005851c4e",
+   "name": "AHU-1",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "ahu-1",
+    "dis": "AHU-1",
+    "markers": "equip,ahu",
+    "siteRef": "demo-site"
+   }
+  },
+  {
+   "uuid": "060ffab0-46db-5d41-b685-63902a319969",
+   "name": "VAV-01 Office",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-01",
+    "dis": "VAV-01 Office",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-1"
+   }
+  },
+  {
+   "uuid": "d2a3b79c-ae8d-59b5-935f-1fa0b2e1ba44",
+   "name": "VAV-02 Conference",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-02",
+    "dis": "VAV-02 Conference",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-1"
+   }
+  },
+  {
+   "uuid": "42bd2c63-7b17-5cab-a3bb-f4535fc652fb",
+   "name": "VAV-03 Corridor",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-03",
+    "dis": "VAV-03 Corridor",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-1"
+   }
+  }
+ ],
+ "points": [
+  {
+   "uuid": "fdb7a640-e7fb-5ad1-a7e8-8b6d82ebd10d",
+   "name": "ahu-1.oa-dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.oa-dmp-cmd",
+    "dis": "AHU-1 outdoor air damper command",
+    "markers": "point,his,outside,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 30
+  },
+  {
+   "uuid": "112001e1-8f55-5b9f-b39c-1df57cba3f6a",
+   "name": "ahu-1.oa-dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.oa-dmp",
+    "dis": "AHU-1 outdoor air damper position",
+    "markers": "point,his,outside,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 30
+  },
+  {
+   "uuid": "271a091a-3d47-5792-baab-95287c0ef453",
+   "name": "ahu-1.ra-dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.ra-dmp-cmd",
+    "dis": "AHU-1 return air damper command",
+    "markers": "point,his,return,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 70
+  },
+  {
+   "uuid": "071ff29b-f076-58fd-8708-962443efa87b",
+   "name": "ahu-1.ra-dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.ra-dmp",
+    "dis": "AHU-1 return air damper position",
+    "markers": "point,his,return,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 70
+  },
+  {
+   "uuid": "85820a30-c203-5f71-b9b7-860cd19f9e5f",
+   "name": "ahu-1.oat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.oat",
+    "dis": "AHU-1 outdoor air temperature",
+    "markers": "point,his,outside,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 31
+  },
+  {
+   "uuid": "133def38-7e64-5aae-aa6b-ca1050cde4b7",
+   "name": "ahu-1.rat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.rat",
+    "dis": "AHU-1 return air temperature",
+    "markers": "point,his,return,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 24
+  },
+  {
+   "uuid": "3b6c6125-fc42-5de5-aaa8-a0ae10ee4703",
+   "name": "ahu-1.mat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.mat",
+    "dis": "AHU-1 mixed air temperature",
+    "markers": "point,his,mixed,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 26
+  },
+  {
+   "uuid": "63a46cd7-b9f6-552f-a409-b33939561ffb",
+   "name": "ahu-1.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.dat",
+    "dis": "AHU-1 discharge air temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 13
+  },
+  {
+   "uuid": "3e205994-5700-544a-807e-36914e771d4c",
+   "name": "ahu-1.dsp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.dsp",
+    "dis": "AHU-1 duct static pressure",
+    "markers": "point,his,discharge,air,pressure,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "Pa",
+    "kind": "Number"
+   },
+   "latestValue": 300
+  },
+  {
+   "uuid": "2aef1cc7-d96c-55c3-8d3a-f25c2fd962c6",
+   "name": "ahu-1.filter-dp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.filter-dp",
+    "dis": "AHU-1 filter differential pressure",
+    "markers": "point,his,filter,air,delta,pressure,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "Pa",
+    "kind": "Number"
+   },
+   "latestValue": 60
+  },
+  {
+   "uuid": "79f8d293-7644-56a9-bf24-c61dc37e7328",
+   "name": "ahu-1.clg-vlv-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.clg-vlv-cmd",
+    "dis": "AHU-1 cooling valve command",
+    "markers": "point,his,cool,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 40
+  },
+  {
+   "uuid": "ce08f96a-0cd6-538d-bc92-4f4f372c96c7",
+   "name": "ahu-1.clg-vlv",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.clg-vlv",
+    "dis": "AHU-1 cooling valve position",
+    "markers": "point,his,cool,valve,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 40
+  },
+  {
+   "uuid": "ecb10591-7ad3-5895-b065-8d2de833dc9b",
+   "name": "ahu-1.htg-vlv-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.htg-vlv-cmd",
+    "dis": "AHU-1 heating valve command",
+    "markers": "point,his,heat,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "279d55cf-f8c9-5f00-9f67-9cde7b794873",
+   "name": "ahu-1.htg-vlv",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.htg-vlv",
+    "dis": "AHU-1 heating valve position",
+    "markers": "point,his,heat,valve,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "6c505bce-5367-5abb-9d89-d19514ae61b9",
+   "name": "ahu-1.sf-speed",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.sf-speed",
+    "dis": "AHU-1 supply fan speed command",
+    "markers": "point,his,discharge,fan,vfd,speed,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 70
+  },
+  {
+   "uuid": "ebff52fc-b69f-578e-879b-05490bc1d430",
+   "name": "ahu-1.sf-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.sf-cmd",
+    "dis": "AHU-1 supply fan start/stop",
+    "markers": "point,his,discharge,fan,run,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "345eb3bf-dfb6-5d4f-92d1-b1dad6fee2b4",
+   "name": "ahu-1.sf-status",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-1.sf-status",
+    "dis": "AHU-1 supply fan status",
+    "markers": "point,his,discharge,fan,run,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-1",
+    "unit": "",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "05021d9a-c77a-5ab5-8823-349c2806e161",
+   "name": "vav-01.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.dmp-cmd",
+    "dis": "VAV-01 Office damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "df41fe89-767c-57bf-ad23-242958fac4b9",
+   "name": "vav-01.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.dmp",
+    "dis": "VAV-01 Office damper position",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "f5f3bce5-2932-59e5-bfdc-9a3f31ba1697",
+   "name": "vav-01.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.flow",
+    "dis": "VAV-01 Office airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 212.5
+  },
+  {
+   "uuid": "11656159-5362-5a2a-be32-b2b280c4dd08",
+   "name": "vav-01.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.flow-max",
+    "dis": "VAV-01 Office maximum airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 425
+  },
+  {
+   "uuid": "0b263c47-3f80-50d0-8b3b-a3b9a7993e2d",
+   "name": "vav-01.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.dat",
+    "dis": "VAV-01 Office discharge air temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "69f16e8f-846e-511a-a31b-1027ff633bfa",
+   "name": "vav-01.rh-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.rh-cmd",
+    "dis": "VAV-01 Office reheat valve command",
+    "markers": "point,his,reheat,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "823be4fa-76aa-59f7-a95f-1dcc3277d6ac",
+   "name": "vav-01.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.zat",
+    "dis": "VAV-01 Office zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "02f9b551-5c50-5624-9a34-087d262a1838",
+   "name": "vav-01.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.zat-sp",
+    "dis": "VAV-01 Office zone temperature setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "1097c8f4-8417-5488-a273-64b2b9f16721",
+   "name": "vav-02.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.dmp-cmd",
+    "dis": "VAV-02 Conference damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "5056d006-694b-538a-a315-23ca6ceb5880",
+   "name": "vav-02.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.dmp",
+    "dis": "VAV-02 Conference damper position",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "00d8a693-4521-526b-b6d1-1732c3fe61c6",
+   "name": "vav-02.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.flow",
+    "dis": "VAV-02 Conference airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 300.0
+  },
+  {
+   "uuid": "f0480acf-cb61-5d36-b064-99a8a1846c2f",
+   "name": "vav-02.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.flow-max",
+    "dis": "VAV-02 Conference maximum airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 600
+  },
+  {
+   "uuid": "8fb61fd5-b86f-5148-b616-b71ab1d1c42a",
+   "name": "vav-02.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.dat",
+    "dis": "VAV-02 Conference discharge air temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "c2bbbd5e-4090-595a-b95d-103b56b81893",
+   "name": "vav-02.rh-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.rh-cmd",
+    "dis": "VAV-02 Conference reheat valve command",
+    "markers": "point,his,reheat,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "e6c882fb-8735-5fd5-b679-e824055887ad",
+   "name": "vav-02.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.zat",
+    "dis": "VAV-02 Conference zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "bc67dd51-dd7b-5cfd-8c9f-4be142089e5e",
+   "name": "vav-02.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.zat-sp",
+    "dis": "VAV-02 Conference zone temperature setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "678a36ec-acfc-5658-9fc2-5af893b5b19a",
+   "name": "vav-03.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.dmp-cmd",
+    "dis": "VAV-03 Corridor damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "24514002-2a94-531b-8d64-380350811041",
+   "name": "vav-03.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.dmp",
+    "dis": "VAV-03 Corridor damper position",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "7eeaa485-9b80-544d-b14b-45a00e12b311",
+   "name": "vav-03.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.flow",
+    "dis": "VAV-03 Corridor airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 90.0
+  },
+  {
+   "uuid": "c0d99d46-490d-57a4-b3cc-b941915e54c8",
+   "name": "vav-03.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.flow-max",
+    "dis": "VAV-03 Corridor maximum airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 180
+  },
+  {
+   "uuid": "3983be74-a152-5da0-9491-fffc967b9b5a",
+   "name": "vav-03.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.dat",
+    "dis": "VAV-03 Corridor discharge air temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "db3259f0-3a60-5612-bf49-770102c3e846",
+   "name": "vav-03.rh-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.rh-cmd",
+    "dis": "VAV-03 Corridor reheat valve command",
+    "markers": "point,his,reheat,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "%",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "36443bee-5429-5ebb-a8d4-ca5b0fc5f818",
+   "name": "vav-03.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.zat",
+    "dis": "VAV-03 Corridor zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "381ed4ca-f4bc-5b46-8af3-bf5d1659b727",
+   "name": "vav-03.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.zat-sp",
+    "dis": "VAV-03 Corridor zone temperature setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "unit": "°C",
+    "kind": "Number"
+   },
+   "latestValue": 22.5
+  }
+ ],
+ "scenarios": [
+  {
+   "equipRef": "vav-03",
+   "part": "s223:Damper",
+   "spec": "stuck:38",
+   "why": "demo: actuator binds at 38% open"
+  }
+ ]
+}

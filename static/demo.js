@@ -137,14 +137,24 @@
     const later = (/** @type {any} */ value) => new Promise((ok) => setTimeout(() => ok(value), 120));
     /** @type {Promise<any>|null} */
     let records = null;
-    // Demo NF records (static/demo-nf-records.json): the twin derives its model from these tags as it would on a live NF.
+    // Demo NF records (static/demo-nf-records.json): the graphic derives its model from these tags as it would on a live NF.
     const demoRecords = () => {
       if (!records) records = fetch('demo-nf-records.json', { credentials: 'same-origin' }).then((r) => r.json());
       return records;
     };
 
+    const MIXED_VENDOR_CONFIG = {
+      version: 1,
+      dry_run: true,
+      equipment: [
+        { id: 'vav-01', type: 'vav', vav_override: { strategy: 'write_airflow_setpoint' } },
+        { id: 'vav-02', type: 'vav', vav_override: { strategy: 'toggle_boolean', role: 'purge_operating_mode_command', on: 1, off: 0 } },
+        { id: 'vav-03', type: 'vav', vav_override: { strategy: 'set_multistate', role: 'maximum_cooling_operating_mode_command', value: 1, release: 0 } },
+      ],
+    };
     return {
       kind: 'demo',
+      siteConfig: MIXED_VENDOR_CONFIG,
       scale: SCALE,
       now: simNow,
       status: () => later(status()),
@@ -156,7 +166,10 @@
         return later(view(result.note));
       },
       planPreview: () => later(preview),
-      abort() {
+      start(/** @type {any} */ _payload) {
+        return later({ ok: true, demo: true, state: 'IDLE', pending: false, writes: 0 });
+      },
+      abort(/** @type {any} */ _payload) {
         if (!aborted) aborted = { at: Date.now(), from: current().phase };
         return later(status());
       },

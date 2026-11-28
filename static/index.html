@@ -8,7 +8,7 @@
 <!--
   NF static app page, served from static/ at /api/v1/apps/static/<app-id>/ on the console origin.
   Plain JavaScript, no build step. Strict CSP: no inline scripts or styles.
-  Pure modules (UMD) are shared with the hooks and the Node tests. The digital twin loads Oxigraph (WebAssembly,
+  Pure modules (UMD) are shared with the hooks and the Node tests. The functional test graphic loads Oxigraph (WebAssembly,
   hence 'wasm-unsafe-eval'), three.js and Open-FDD's model.js only when its tab opens.
   Add ?demo=1 to run the whole page on fixture data with no station.
 -->
@@ -33,8 +33,12 @@
 <script defer src="haystack-bind.js"></script>
 <script defer src="tags-223p.js"></script>
 <script defer src="model-source.js"></script>
-<script defer src="twin.js"></script>
-<script defer src="twin-view.js"></script>
+<script defer src="systems.js"></script>
+<script defer src="ftest-strategies.js"></script>
+<script defer src="ftest.js"></script>
+<script defer src="deficiencies.js"></script>
+<script defer src="graphic.js"></script>
+<script defer src="graphic-view.js"></script>
 <script defer src="app.js"></script>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="app.css">
@@ -56,11 +60,12 @@
   <button type="button" data-tab="schedule">Schedule</button>
   <button type="button" data-tab="equipment">What the test touches</button>
   <button type="button" data-tab="history">Run history</button>
-  <button type="button" data-tab="twin">Digital twin</button>
+  <button type="button" data-tab="graphic">Functional test graphic</button>
 </nav>
 <main>
   <div id="err" role="alert"></div>
   <p id="unknownBanner" class="banner bad-banner" hidden>Status unknown. The page cannot reach the app hooks, so it cannot confirm whether a run or override is active. <a href="?demo=1">Open demo mode</a> to explore the page without a station.</p>
+  <div id="testBanner" class="test-banner" hidden></div>
 
   <section class="tab on" id="tab-overview">
     <div class="cards" id="overviewCards"></div>
@@ -112,6 +117,11 @@
       <div class="legend mt6"><span><i class="lg-window"></i>Test window</span><span><i class="lg-occ"></i>Occupied (NF schedule)</span><span><i class="lg-event"></i>Special event</span><span><i class="lg-run"></i>Scheduled run</span><span><i class="lg-skip"></i>Run that would be skipped</span></div>
     </div>
     <div class="panel">
+      <h2>Which systems this schedule covers <span class="hint">one site-wide rule, or per-system overrides. Together = same occurrence, staggered = offset start.</span></h2>
+      <div id="scheduleScope"></div>
+      <div id="scheduleConflicts" class="mt6"></div>
+    </div>
+    <div class="panel">
       <h2>Occupancy and holiday blackout <span class="hint">NF schedule service, read only</span></h2>
       <div id="blackout"></div>
     </div>
@@ -145,41 +155,29 @@
       <div id="hookRuns" class="tablewrap"></div>
     </div>
   </section>
-  <section class="tab" id="tab-twin">
+  <section class="tab" id="tab-graphic">
+    <div id="systemOverview" class="panel system-overview"></div>
     <div class="panel">
-      <h2>Digital twin <span class="hint">built from the 223P model derived from NF tags · simulation only, nothing here writes to NF</span>
-        <select id="twinUnit" aria-label="Air handler"></select>
-        <button class="btn" type="button" id="twinRefresh">Re-check model</button>
+      <h2>Functional test graphic <span class="hint">passive view of live NF values, drawn from the 223P model · writes only happen if you start a test, through the guarded command path (dry-run by default)</span>
+        <select id="graphicUnit" aria-label="Air-handling system"></select>
+        <button class="btn" type="button" id="graphicRefresh">Re-check model</button>
       </h2>
-      <div id="twinSource" class="twin-source"></div>
-      <div class="twin-wrap mt6">
-        <div id="twinStage" class="twin-stage"></div>
-        <div class="twin-side">
-          <div class="twin-legend"><span><i class="lg-amber"></i>overridden by the test</span><span><i class="lg-red"></i>failed step</span><span><i class="lg-sp"></i>duct static pressure</span></div>
-          <div id="twinControls" class="twin-controls"></div>
-          <div id="twinFaults" class="twin-faults mt6"></div>
+      <p id="graphicIdleNote" class="hint">Passive view of live NF values. Nothing on this tab writes unless you start a test.</p>
+      <div id="graphicSource" class="graphic-source"></div>
+      <div class="graphic-wrap mt6">
+        <div id="graphicStage" class="graphic-stage"></div>
+        <div class="graphic-side">
+          <div class="graphic-legend"><span><i class="lg-amber"></i>overridden by the test</span><span><i class="lg-red"></i>deficiency</span><span><i class="lg-sp"></i>duct static pressure</span><span><i class="lg-hw"></i>hot water</span><span><i class="lg-chw"></i>chilled water</span></div>
+          <div id="graphicTestPanel" class="graphic-test-panel"></div>
+          <div id="graphicRunResult" class="mt6"></div>
+          <div id="graphicDeficiencies" class="graphic-deficiencies mt6"></div>
         </div>
       </div>
     </div>
+    <div class="panel" id="graphicCanTest"></div>
     <div class="panel">
-      <h2>Functional test playback <span class="hint">terminal damper stroke test on the sim · pass/fail, limits, interlocks, timeouts and release are plain code</span>
-        <button class="btn primary" type="button" id="twinRunBtn">Run stroke test (sim)</button>
-        <button class="btn" type="button" id="twinLiveBtn">Back to live sim</button>
-      </h2>
-      <div id="twinScrubRow" class="twin-scrub" hidden>
-        <button class="btn" type="button" id="twinBack" aria-label="Back 10 seconds">◀◀</button>
-        <button class="btn" type="button" id="twinPlay">Play</button>
-        <button class="btn" type="button" id="twinFwd" aria-label="Forward 10 seconds">▶▶</button>
-        <input type="range" id="twinScrub" min="0" max="0" value="0" aria-label="Replay position">
-        <select id="twinSpeed" aria-label="Replay speed"><option value="2">2x</option><option value="8" selected>8x</option><option value="32">32x</option></select>
-        <span id="twinPhase" class="twin-phase"></span>
-      </div>
-      <div id="twinChart" class="chart short mt6"></div>
-      <div id="twinRun" class="tablewrap mt6"></div>
-    </div>
-    <div class="panel">
-      <h2>Points in the model <span class="hint">every NF point the twin bound, with its Open-FDD role</span></h2>
-      <div id="twinPoints" class="tablewrap"></div>
+      <h2>Points in the model <span class="hint">every NF point this system bound, with its Open-FDD role · read-only</span></h2>
+      <div id="graphicPoints" class="tablewrap"></div>
     </div>
   </section>
 </main>

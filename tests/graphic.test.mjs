@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const oxigraph = require('../static/vendor/oxigraph/node.js');
 const S = require('../static/s223.js');
-const T = require('../static/twin.js');
+const T = require('../static/graphic.js');
 const vocab = require('../static/roles-223p.js');
 
 const DEMO = fs.readFileSync(path.join(__dirname, 'fixtures', 'rdf', 'hand-223p.ttl'), 'utf8');

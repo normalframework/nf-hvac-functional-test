@@ -1,5 +1,5 @@
 {
- "note": "Demo NF records (point/query, model and default layers): one air handler and three terminals, tagged with Haystack 4 markers. Synthetic; no real site. The twin derives its 223P model from these tags exactly as it does from a live NF.",
+ "note": "Demo NF records (synthetic, no real site): two air handlers (AHU-1 with heating, cooling, VFD and 3 VAVs on a hot-water loop; AHU-2 cooling-only with 8 VAVs), a boiler/pump plant, and one unassigned VAV with no airRef. Mixed per-box override points: VAV-01 writable airflow setpoint, VAV-02 boolean flush, VAV-03 enumerated box mode. The graphic derives 223P from these tags.",
  "model": [
   {
    "uuid": "1e3e9118-3a71-5a01-8cfd-5e0db19a8fdf",
@@ -56,6 +56,147 @@
     "markers": "equip,vav,airTerminalUnit",
     "siteRef": "demo-site",
     "airRef": "ahu-1"
+   }
+  },
+  {
+   "uuid": "9674043a-ea66-5824-9ad0-b1a0e150f442",
+   "name": "HW Boiler-1",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "hw-boiler-1",
+    "dis": "HW Boiler-1",
+    "markers": "equip,boiler",
+    "siteRef": "demo-site"
+   }
+  },
+  {
+   "uuid": "e97e1857-c042-5928-be20-7c110ab379ee",
+   "name": "HW Pump-1",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "hw-pump-1",
+    "dis": "HW Pump-1",
+    "markers": "equip,pump,hot,water",
+    "siteRef": "demo-site",
+    "feeds": "ahu-1"
+   }
+  },
+  {
+   "uuid": "ce5b5989-84ff-59aa-83d4-3e30010d3088",
+   "name": "AHU-2",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "ahu-2",
+    "dis": "AHU-2",
+    "markers": "equip,ahu",
+    "siteRef": "demo-site"
+   }
+  },
+  {
+   "uuid": "ac59d2cf-6218-5d03-875a-0ad1d9cd9b2e",
+   "name": "VAV-21 North",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-201",
+    "dis": "VAV-21 North",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "9e9e867e-3784-509d-97da-7b5404805d73",
+   "name": "VAV-22 South",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-202",
+    "dis": "VAV-22 South",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "ddd5b20e-aa4b-5df5-898e-6a9926aef5d8",
+   "name": "VAV-23 East",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-203",
+    "dis": "VAV-23 East",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "d0e27eed-7dc3-53cd-b6b7-dcf65d1ea325",
+   "name": "VAV-24 West",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-204",
+    "dis": "VAV-24 West",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "df46e9e6-c486-566d-a78e-1a6570e75e89",
+   "name": "VAV-25 Lobby",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-205",
+    "dis": "VAV-25 Lobby",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "9795084a-683a-53f6-9734-eff9cfb41890",
+   "name": "VAV-26 Lab",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-206",
+    "dis": "VAV-26 Lab",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "3f677dd2-ac02-5fdf-a8af-2e0d31551fc6",
+   "name": "VAV-27 Storage",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-207",
+    "dis": "VAV-27 Storage",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "2abe7e80-8df3-56ae-9bc0-e50a61dc1ddb",
+   "name": "VAV-28 Breakroom",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-208",
+    "dis": "VAV-28 Breakroom",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site",
+    "airRef": "ahu-2"
+   }
+  },
+  {
+   "uuid": "ab91262b-5478-57e6-8970-608b74b195db",
+   "name": "VAV-99 Unassigned",
+   "pointType": "EQUIPMENT",
+   "attrs": {
+    "id": "vav-99",
+    "dis": "VAV-99 Unassigned",
+    "markers": "equip,vav,airTerminalUnit",
+    "siteRef": "demo-site"
    }
   }
  ],
@@ -130,7 +271,7 @@
     "markers": "point,his,outside,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "ahu-1",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 31
@@ -145,7 +286,7 @@
     "markers": "point,his,return,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "ahu-1",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 24
@@ -160,7 +301,7 @@
     "markers": "point,his,mixed,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "ahu-1",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 26
@@ -175,7 +316,7 @@
     "markers": "point,his,discharge,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "ahu-1",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 13
@@ -385,7 +526,7 @@
     "markers": "point,his,discharge,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-01",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 14
@@ -415,7 +556,7 @@
     "markers": "point,his,zone,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-01",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 23
@@ -430,7 +571,7 @@
     "markers": "point,his,zone,air,temp,sp,writable",
     "siteRef": "demo-site",
     "equipRef": "vav-01",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 22.5
@@ -478,7 +619,7 @@
     "unit": "L/s",
     "kind": "Number"
    },
-   "latestValue": 300.0
+   "latestValue": 300
   },
   {
    "uuid": "f0480acf-cb61-5d36-b064-99a8a1846c2f",
@@ -505,7 +646,7 @@
     "markers": "point,his,discharge,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-02",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 14
@@ -535,7 +676,7 @@
     "markers": "point,his,zone,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-02",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 23
@@ -550,7 +691,7 @@
     "markers": "point,his,zone,air,temp,sp,writable",
     "siteRef": "demo-site",
     "equipRef": "vav-02",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 22.5
@@ -598,7 +739,7 @@
     "unit": "L/s",
     "kind": "Number"
    },
-   "latestValue": 90.0
+   "latestValue": 90
   },
   {
    "uuid": "c0d99d46-490d-57a4-b3cc-b941915e54c8",
@@ -625,7 +766,7 @@
     "markers": "point,his,discharge,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-03",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 14
@@ -655,7 +796,7 @@
     "markers": "point,his,zone,air,temp,sensor",
     "siteRef": "demo-site",
     "equipRef": "vav-03",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 23
@@ -670,18 +811,1294 @@
     "markers": "point,his,zone,air,temp,sp,writable",
     "siteRef": "demo-site",
     "equipRef": "vav-03",
-    "unit": "°C",
+    "unit": "\u00b0C",
     "kind": "Number"
    },
    "latestValue": 22.5
+  },
+  {
+   "uuid": "d021b17f-ae34-56cc-83c5-21f46b0c6a7e",
+   "name": "vav-01.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-01.flow-sp",
+    "dis": "VAV-01 Office airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-01",
+    "unit": "L/s",
+    "kind": "Number"
+   },
+   "latestValue": 212.5
+  },
+  {
+   "uuid": "65ee4f4c-eca8-5b8e-b71a-fd8129216f87",
+   "name": "vav-02.purge-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-02.purge-cmd",
+    "dis": "VAV-02 Conference flush / max-flow",
+    "markers": "point,his,purge,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-02",
+    "kind": "Bool"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "821e16c4-e3c3-548e-90d7-b2a493ed3d1b",
+   "name": "vav-03.test-mode",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-03.test-mode",
+    "dis": "VAV-03 Corridor max-cooling mode",
+    "markers": "point,his,max,cool,cmd,mode,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-03",
+    "kind": "Number"
+   },
+   "latestValue": 0
+  },
+  {
+   "uuid": "1d23b94b-070c-58ee-b916-86ac44d6063c",
+   "name": "hw-boiler-1.run",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "hw-boiler-1.run",
+    "dis": "HW Boiler-1 operating status",
+    "markers": "point,his,boiler,run,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "hw-boiler-1",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "15405503-36d9-59cc-86fe-d27c87afcf55",
+   "name": "hw-boiler-1.hws-t",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "hw-boiler-1.hws-t",
+    "dis": "HW supply temperature",
+    "markers": "point,his,hot,water,leaving,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "hw-boiler-1",
+    "unit": "\u00b0C",
+    "kind": "Number"
+   },
+   "latestValue": 71
+  },
+  {
+   "uuid": "0bbc625a-3040-5a34-a607-3c458398c3e9",
+   "name": "hw-boiler-1.hwr-t",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "hw-boiler-1.hwr-t",
+    "dis": "HW return temperature",
+    "markers": "point,his,hot,water,entering,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "hw-boiler-1",
+    "unit": "\u00b0C",
+    "kind": "Number"
+   },
+   "latestValue": 58
+  },
+  {
+   "uuid": "09829d89-bfb3-549a-8c34-b75c501ff89f",
+   "name": "hw-pump-1.run",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "hw-pump-1.run",
+    "dis": "HW Pump-1 operating status",
+    "markers": "point,his,pump,run,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "hw-pump-1",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "0a87f162-f282-58fe-9b3a-b7fd5bee8cb9",
+   "name": "ahu-2.oa-dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.oa-dmp-cmd",
+    "dis": "AHU-2 outdoor air damper command",
+    "markers": "point,his,outside,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 25
+  },
+  {
+   "uuid": "29f00c1b-6582-508f-ac54-a05dbde002f6",
+   "name": "ahu-2.oa-dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.oa-dmp",
+    "dis": "AHU-2 outdoor air damper",
+    "markers": "point,his,outside,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 25
+  },
+  {
+   "uuid": "e1d45cd1-fe1c-57e5-ae4f-402d2499e20c",
+   "name": "ahu-2.ra-dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.ra-dmp-cmd",
+    "dis": "AHU-2 return damper command",
+    "markers": "point,his,return,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 75
+  },
+  {
+   "uuid": "ebe18e07-e2a7-5d28-b07a-074235d04123",
+   "name": "ahu-2.ra-dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.ra-dmp",
+    "dis": "AHU-2 return damper",
+    "markers": "point,his,return,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 75
+  },
+  {
+   "uuid": "bac5c02a-2f53-51ad-a420-2d5dea80601e",
+   "name": "ahu-2.oat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.oat",
+    "dis": "AHU-2 outdoor air temperature",
+    "markers": "point,his,outside,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 31
+  },
+  {
+   "uuid": "cce36f50-ee99-5f40-8099-53341cd71293",
+   "name": "ahu-2.rat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.rat",
+    "dis": "AHU-2 return air temperature",
+    "markers": "point,his,return,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 24
+  },
+  {
+   "uuid": "e403a0a7-0725-5399-95c8-c073e0b0d091",
+   "name": "ahu-2.mat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.mat",
+    "dis": "AHU-2 mixed air temperature",
+    "markers": "point,his,mixed,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 26
+  },
+  {
+   "uuid": "acaa286a-ed7b-5a06-9c0f-cd61c39d7edd",
+   "name": "ahu-2.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.dat",
+    "dis": "AHU-2 discharge air temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 13
+  },
+  {
+   "uuid": "809b31c1-c696-5222-bfbb-2b1cd4f2226c",
+   "name": "ahu-2.dsp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.dsp",
+    "dis": "AHU-2 duct static pressure",
+    "markers": "point,his,discharge,air,pressure,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "Pa"
+   },
+   "latestValue": 280
+  },
+  {
+   "uuid": "af894a0f-3e78-5475-a03a-106cfe39afd4",
+   "name": "ahu-2.filter-dp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.filter-dp",
+    "dis": "AHU-2 filter dp",
+    "markers": "point,his,filter,air,delta,pressure,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "Pa"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "9aa208ee-1718-560c-8460-5e5b51198e71",
+   "name": "ahu-2.clg-vlv-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.clg-vlv-cmd",
+    "dis": "AHU-2 cooling valve command",
+    "markers": "point,his,cool,valve,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 35
+  },
+  {
+   "uuid": "4ac2fdaf-be9c-5120-b646-bcac85c4f61e",
+   "name": "ahu-2.clg-vlv",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.clg-vlv",
+    "dis": "AHU-2 cooling valve",
+    "markers": "point,his,cool,valve,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 35
+  },
+  {
+   "uuid": "966a6672-be12-524f-9df8-ca0fd02cf779",
+   "name": "ahu-2.sf-speed",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.sf-speed",
+    "dis": "AHU-2 supply fan speed",
+    "markers": "point,his,discharge,fan,vfd,speed,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Number",
+    "unit": "%"
+   },
+   "latestValue": 65
+  },
+  {
+   "uuid": "91663bfb-53c9-5e6e-86ac-59bb97a85e6f",
+   "name": "ahu-2.sf-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.sf-cmd",
+    "dis": "AHU-2 supply fan command",
+    "markers": "point,his,discharge,fan,run,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "37d1ce96-c5f0-587e-a1d1-ad705e42065b",
+   "name": "ahu-2.sf-status",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "ahu-2.sf-status",
+    "dis": "AHU-2 supply fan status",
+    "markers": "point,his,discharge,fan,run,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "ahu-2",
+    "kind": "Bool"
+   },
+   "latestValue": true
+  },
+  {
+   "uuid": "dd93427d-8c82-544d-863f-23d11b9a4227",
+   "name": "vav-201.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.dmp-cmd",
+    "dis": "VAV-21 North damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "8dfdc7a5-09f1-5689-bddf-59e01ec3a0cf",
+   "name": "vav-201.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.dmp",
+    "dis": "VAV-21 North damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "0b6a1121-a153-5c98-bc98-bef90e7f14a4",
+   "name": "vav-201.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.flow",
+    "dis": "VAV-21 North airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "L/s"
+   },
+   "latestValue": 112.5
+  },
+  {
+   "uuid": "6d665108-41ce-5d88-ab37-006e86660a4b",
+   "name": "vav-201.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.flow-max",
+    "dis": "VAV-21 North max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "L/s"
+   },
+   "latestValue": 225
+  },
+  {
+   "uuid": "74c389ba-5934-59c3-9b20-1a315cee4783",
+   "name": "vav-201.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.flow-sp",
+    "dis": "VAV-21 North airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "L/s"
+   },
+   "latestValue": 112.5
+  },
+  {
+   "uuid": "4c52c711-8b86-5e39-bfd9-997ada4be0ab",
+   "name": "vav-201.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.dat",
+    "dis": "VAV-21 North discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "3571bcec-8c08-5c05-b147-02f91cac22b2",
+   "name": "vav-201.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.zat",
+    "dis": "VAV-21 North zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "bc1012e3-aa4c-5e87-8983-711aebfcf372",
+   "name": "vav-201.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-201.zat-sp",
+    "dis": "VAV-21 North zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-201",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "dcb26ad1-3c71-56ef-9d95-262691359e43",
+   "name": "vav-202.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.dmp-cmd",
+    "dis": "VAV-22 South damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "c9d715f6-e01d-5c2c-b9ac-f38dd36d51cb",
+   "name": "vav-202.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.dmp",
+    "dis": "VAV-22 South damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "7f25bd4b-dd22-504a-ae29-02bc78ec936a",
+   "name": "vav-202.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.flow",
+    "dis": "VAV-22 South airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "L/s"
+   },
+   "latestValue": 125
+  },
+  {
+   "uuid": "efe06e48-efd5-5c10-b959-a408bff08924",
+   "name": "vav-202.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.flow-max",
+    "dis": "VAV-22 South max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "L/s"
+   },
+   "latestValue": 250
+  },
+  {
+   "uuid": "8e34fd0b-72da-5486-9852-8ae0a4dff210",
+   "name": "vav-202.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.flow-sp",
+    "dis": "VAV-22 South airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "L/s"
+   },
+   "latestValue": 125
+  },
+  {
+   "uuid": "ee14bda5-4cd5-5177-86a2-26157e99ffeb",
+   "name": "vav-202.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.dat",
+    "dis": "VAV-22 South discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "b8a59a75-7d16-58cd-8bd8-0bde2d35c0b1",
+   "name": "vav-202.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.zat",
+    "dis": "VAV-22 South zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "792dde95-d6b4-5023-8a38-167139ae0c1c",
+   "name": "vav-202.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-202.zat-sp",
+    "dis": "VAV-22 South zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-202",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "1f362da8-3471-5576-934e-44b28b8c7501",
+   "name": "vav-203.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.dmp-cmd",
+    "dis": "VAV-23 East damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "ec0a68cd-7fc8-5d72-900f-a606c228bb2a",
+   "name": "vav-203.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.dmp",
+    "dis": "VAV-23 East damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "72229d71-9817-57b2-9074-88c7cc5333b6",
+   "name": "vav-203.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.flow",
+    "dis": "VAV-23 East airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "L/s"
+   },
+   "latestValue": 137.5
+  },
+  {
+   "uuid": "884f41a8-f2b7-5c64-b0f5-997103512b0a",
+   "name": "vav-203.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.flow-max",
+    "dis": "VAV-23 East max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "L/s"
+   },
+   "latestValue": 275
+  },
+  {
+   "uuid": "90da1165-078e-52bc-89d3-236c2546faaa",
+   "name": "vav-203.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.flow-sp",
+    "dis": "VAV-23 East airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "L/s"
+   },
+   "latestValue": 137.5
+  },
+  {
+   "uuid": "eb469f71-b74f-5f26-8cc1-952e5b6338a2",
+   "name": "vav-203.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.dat",
+    "dis": "VAV-23 East discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "728959c4-2253-52cf-8109-e0ad0918a40f",
+   "name": "vav-203.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.zat",
+    "dis": "VAV-23 East zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "2cd40fe9-d1e6-5655-b097-b3b2cdd0dba5",
+   "name": "vav-203.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-203.zat-sp",
+    "dis": "VAV-23 East zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-203",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "5650fc38-0133-519e-b0b4-01e36245a762",
+   "name": "vav-204.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.dmp-cmd",
+    "dis": "VAV-24 West damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "cd311195-117b-511c-8d11-4ddd0b49ca89",
+   "name": "vav-204.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.dmp",
+    "dis": "VAV-24 West damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "6eb795fc-1641-5bb6-b1a4-aaaa6caa5520",
+   "name": "vav-204.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.flow",
+    "dis": "VAV-24 West airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "L/s"
+   },
+   "latestValue": 150
+  },
+  {
+   "uuid": "af9000cd-81cf-57a9-9930-7eb2200543c4",
+   "name": "vav-204.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.flow-max",
+    "dis": "VAV-24 West max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "L/s"
+   },
+   "latestValue": 300
+  },
+  {
+   "uuid": "a983dc43-aa55-5df8-bbd4-50232225a1bc",
+   "name": "vav-204.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.flow-sp",
+    "dis": "VAV-24 West airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "L/s"
+   },
+   "latestValue": 150
+  },
+  {
+   "uuid": "38ac327b-2bc9-51b1-a124-5b88767c9ef1",
+   "name": "vav-204.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.dat",
+    "dis": "VAV-24 West discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "affc2355-ea01-52bf-aa49-f20300613baa",
+   "name": "vav-204.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.zat",
+    "dis": "VAV-24 West zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "f4dc6d2b-36da-5aec-b598-f7fc67b13a62",
+   "name": "vav-204.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-204.zat-sp",
+    "dis": "VAV-24 West zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-204",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "1a10e44a-868a-59c3-8f7e-cfa25a30e194",
+   "name": "vav-205.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.dmp-cmd",
+    "dis": "VAV-25 Lobby damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "31145b93-a783-5cc8-a376-05cb0d392319",
+   "name": "vav-205.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.dmp",
+    "dis": "VAV-25 Lobby damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "cda6e468-3cea-5b96-86f3-59568e6bb3ca",
+   "name": "vav-205.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.flow",
+    "dis": "VAV-25 Lobby airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "L/s"
+   },
+   "latestValue": 162.5
+  },
+  {
+   "uuid": "fa242930-3035-5192-9386-986352025b05",
+   "name": "vav-205.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.flow-max",
+    "dis": "VAV-25 Lobby max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "L/s"
+   },
+   "latestValue": 325
+  },
+  {
+   "uuid": "eb65bbd8-0f17-5a42-b17f-63265b82814d",
+   "name": "vav-205.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.flow-sp",
+    "dis": "VAV-25 Lobby airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "L/s"
+   },
+   "latestValue": 162.5
+  },
+  {
+   "uuid": "f1d3c188-2e06-5304-97fd-d6d552d62348",
+   "name": "vav-205.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.dat",
+    "dis": "VAV-25 Lobby discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "c0880936-5d35-5daf-b252-2b77e67c79da",
+   "name": "vav-205.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.zat",
+    "dis": "VAV-25 Lobby zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "2a070fcd-5cf2-5823-b578-0fa3dbe067eb",
+   "name": "vav-205.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-205.zat-sp",
+    "dis": "VAV-25 Lobby zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-205",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "e56d8fed-62fe-518c-add9-66c1b11dc5cf",
+   "name": "vav-206.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.dmp-cmd",
+    "dis": "VAV-26 Lab damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "e86c8195-82c8-5781-8314-5c0474103bc0",
+   "name": "vav-206.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.dmp",
+    "dis": "VAV-26 Lab damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "16ebce44-9748-5afd-ac3d-b02a6c1f0850",
+   "name": "vav-206.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.flow",
+    "dis": "VAV-26 Lab airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "L/s"
+   },
+   "latestValue": 175
+  },
+  {
+   "uuid": "7a123f62-cc0b-5e02-8c0a-af24a74cde31",
+   "name": "vav-206.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.flow-max",
+    "dis": "VAV-26 Lab max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "L/s"
+   },
+   "latestValue": 350
+  },
+  {
+   "uuid": "746aab56-78f6-5783-b098-8830d411cdb5",
+   "name": "vav-206.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.flow-sp",
+    "dis": "VAV-26 Lab airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "L/s"
+   },
+   "latestValue": 175
+  },
+  {
+   "uuid": "5a0dc56e-4287-58fd-9b4a-6d4a1aa25526",
+   "name": "vav-206.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.dat",
+    "dis": "VAV-26 Lab discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "ddef0e53-22e5-56ef-818e-1e87fb2eebd3",
+   "name": "vav-206.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.zat",
+    "dis": "VAV-26 Lab zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "1dfc7945-109d-5bf0-ad6f-27116d1fa8f2",
+   "name": "vav-206.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-206.zat-sp",
+    "dis": "VAV-26 Lab zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-206",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "d6420fa4-f299-569a-a986-d127b25afa1e",
+   "name": "vav-207.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.dmp-cmd",
+    "dis": "VAV-27 Storage damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "e089e656-e6ef-57fc-9611-4f30f22a4da5",
+   "name": "vav-207.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.dmp",
+    "dis": "VAV-27 Storage damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "0d0f3c62-e0b3-58b2-95f4-ae6d0ac6b81e",
+   "name": "vav-207.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.flow",
+    "dis": "VAV-27 Storage airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "L/s"
+   },
+   "latestValue": 187.5
+  },
+  {
+   "uuid": "61b184f6-d6a2-5ebc-871a-85ec12d53620",
+   "name": "vav-207.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.flow-max",
+    "dis": "VAV-27 Storage max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "L/s"
+   },
+   "latestValue": 375
+  },
+  {
+   "uuid": "75732c96-0f05-5a54-990e-7b2517b43ad4",
+   "name": "vav-207.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.flow-sp",
+    "dis": "VAV-27 Storage airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "L/s"
+   },
+   "latestValue": 187.5
+  },
+  {
+   "uuid": "ad806b87-a960-5c5a-8c02-39bad0ff9538",
+   "name": "vav-207.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.dat",
+    "dis": "VAV-27 Storage discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "51c58081-8463-5143-a673-c785e5d60c56",
+   "name": "vav-207.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.zat",
+    "dis": "VAV-27 Storage zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "d7da2a12-f14a-51b5-a7ee-8399e220f50a",
+   "name": "vav-207.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-207.zat-sp",
+    "dis": "VAV-27 Storage zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-207",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "a792e281-44f6-5c0f-a498-c799a7627d5a",
+   "name": "vav-208.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.dmp-cmd",
+    "dis": "VAV-28 Breakroom damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "2860bf02-4d59-5363-ba7a-e92edd8bf6c7",
+   "name": "vav-208.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.dmp",
+    "dis": "VAV-28 Breakroom damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "%"
+   },
+   "latestValue": 50
+  },
+  {
+   "uuid": "d8736928-2522-55f0-b205-abf0584d01f2",
+   "name": "vav-208.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.flow",
+    "dis": "VAV-28 Breakroom airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "L/s"
+   },
+   "latestValue": 200
+  },
+  {
+   "uuid": "6996699a-fb64-595e-a8ee-55fb5bd2df2c",
+   "name": "vav-208.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.flow-max",
+    "dis": "VAV-28 Breakroom max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "L/s"
+   },
+   "latestValue": 400
+  },
+  {
+   "uuid": "14669e3c-f0db-5770-91c0-692e71e0eca5",
+   "name": "vav-208.flow-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.flow-sp",
+    "dis": "VAV-28 Breakroom airflow setpoint",
+    "markers": "point,his,discharge,air,flow,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "L/s"
+   },
+   "latestValue": 200
+  },
+  {
+   "uuid": "503b878e-6360-56ca-9dc0-04243b5d7113",
+   "name": "vav-208.dat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.dat",
+    "dis": "VAV-28 Breakroom discharge temperature",
+    "markers": "point,his,discharge,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 14
+  },
+  {
+   "uuid": "4342d2c1-652b-5cfc-8087-d35af7c1278e",
+   "name": "vav-208.zat",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.zat",
+    "dis": "VAV-28 Breakroom zone temperature",
+    "markers": "point,his,zone,air,temp,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 23
+  },
+  {
+   "uuid": "7ed6b253-f05a-5c38-8875-25718376d9c7",
+   "name": "vav-208.zat-sp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-208.zat-sp",
+    "dis": "VAV-28 Breakroom zone setpoint",
+    "markers": "point,his,zone,air,temp,sp,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-208",
+    "unit": "\u00b0C"
+   },
+   "latestValue": 22.5
+  },
+  {
+   "uuid": "4d42007f-0e59-53a4-a9b7-90550aec46cc",
+   "name": "vav-99.dmp-cmd",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-99.dmp-cmd",
+    "dis": "VAV-99 Unassigned damper command",
+    "markers": "point,his,damper,cmd,writable",
+    "siteRef": "demo-site",
+    "equipRef": "vav-99",
+    "unit": "%"
+   },
+   "latestValue": 40
+  },
+  {
+   "uuid": "ac164928-835f-50b6-b587-b232d671659d",
+   "name": "vav-99.dmp",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-99.dmp",
+    "dis": "VAV-99 Unassigned damper",
+    "markers": "point,his,damper,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-99",
+    "unit": "%"
+   },
+   "latestValue": 40
+  },
+  {
+   "uuid": "67f5edd8-80f3-5977-8e05-408ea58ba4d5",
+   "name": "vav-99.flow",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-99.flow",
+    "dis": "VAV-99 Unassigned airflow",
+    "markers": "point,his,discharge,air,flow,sensor",
+    "siteRef": "demo-site",
+    "equipRef": "vav-99",
+    "unit": "L/s"
+   },
+   "latestValue": 80
+  },
+  {
+   "uuid": "1530fe4f-fcbe-59ca-aec7-ec41c5802981",
+   "name": "vav-99.flow-max",
+   "pointType": "POINT",
+   "attrs": {
+    "id": "vav-99.flow-max",
+    "dis": "VAV-99 Unassigned max airflow",
+    "markers": "point,his,discharge,max,air,flow,sp",
+    "siteRef": "demo-site",
+    "equipRef": "vav-99",
+    "unit": "L/s"
+   },
+   "latestValue": 200
   }
  ],
  "scenarios": [
   {
    "equipRef": "vav-03",
    "part": "s223:Damper",
-   "spec": "stuck:38",
-   "why": "demo: actuator binds at 38% open"
+   "spec": "starved:45"
   }
- ]
+ ],
+ "site_config_example": "examples/mixed-vendor-vav-overrides.json"
 }

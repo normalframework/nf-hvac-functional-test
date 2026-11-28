@@ -64,6 +64,14 @@ async function executeVav(options) {
    * @param {any} box
    */
   async function writeBox(box) {
+    if (box.strategy === 'toggle_boolean' || box.strategy === 'set_multistate') {
+      const role = box.role || (box.resolved && box.resolved.role) || (box.strategy === 'set_multistate' ? 'test_operating_mode_command' : 'purge_operating_mode_command');
+      const point = pointFor(box.equipment_id, role);
+      const value = box.value !== undefined ? box.value : (box.resolved && (box.resolved.on !== undefined ? box.resolved.on : box.resolved.value));
+      const wrote = await writeOne(writer, runId, box.equipment_id, point, value ?? 1);
+      if (!wrote.ok) return { equipment_id: box.equipment_id, strategy: box.strategy, reason: wrote.reason };
+      return { equipment_id: box.equipment_id, strategy: box.strategy, reason: null };
+    }
     if (box.strategy === 'flush_point') {
       const point = pointFor(box.equipment_id, 'purge_operating_mode_command');
       const value = config.vav_test.values.flush_on;
@@ -81,6 +89,9 @@ async function executeVav(options) {
     });
     if (!target.ok || target.value === undefined) {
       return { equipment_id: box.equipment_id, strategy: box.strategy, reason: target.reason || 'airflow_not_positive' };
+    }
+    if (box.strategy !== 'airflow_setpoint' && box.strategy !== 'write_airflow_setpoint' && box.strategy) {
+      return { equipment_id: box.equipment_id, strategy: box.strategy, reason: 'unknown_strategy' };
     }
     const point = pointFor(box.equipment_id, 'discharge_air_volume_flow_rate_setpoint');
     const wrote = await writeOne(writer, runId, box.equipment_id, point, target.value);

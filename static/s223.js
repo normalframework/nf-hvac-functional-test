@@ -546,10 +546,51 @@
         terminals: served,
       };
     });
+    const contained = new Set();
+    for (const a of ahus) {
+      contained.add(a.iri);
+      for (const p of a.parts || []) contained.add(p.iri);
+      for (const t of a.terminals || []) {
+        contained.add(t.iri);
+        for (const p of t.parts || []) contained.add(p.iri);
+      }
+    }
+    const plantTypes = ['s223:Boiler', 's223:Chiller', 's223:Pump', 's223:CoolingTower'];
+    /** @type {any[]} */
+    const plants = [];
+    const plantSeen = new Set();
+    for (const typ of plantTypes) {
+      for (const n of g.ofType(typ)) {
+        if (contained.has(n) || plantSeen.has(n)) continue;
+        plantSeen.add(n);
+        const parts = containsClosure(g, n).filter((x) => x !== n).map(node);
+        plants.push({ ...node(n), parts });
+        contained.add(n);
+        for (const p of parts) contained.add(p.iri);
+      }
+    }
+    const terminalsAll = [];
+    const seenTerm = new Set();
+    for (const typ of ['s223:SingleDuctTerminal', 's223:FanPoweredTerminal', 's223:TerminalUnit']) {
+      for (const n of g.ofType(typ)) {
+        if (seenTerm.has(n)) continue;
+        seenTerm.add(n);
+        terminalsAll.push(n);
+      }
+    }
+    const unassigned = terminalsAll.filter((n) => !contained.has(n)).map((n) => {
+      contained.add(n);
+      return { ...node(n), parts: containsClosure(g, n).filter((x) => x !== n).map(node), zone: null, unassigned: true };
+    });
+    const other = g.ofType('s223:Equipment').filter((n) => !contained.has(n)).map((n) => ({ ...node(n), parts: containsClosure(g, n).filter((x) => x !== n).map(node) }));
+
     if (!ahus.length) warnings.push('no s223:AirHandlingUnit in the model');
     return {
       triples: g.size,
       ahus,
+      plants,
+      unassigned,
+      other,
       properties: { total: props.size, matched: props.size - unmatched.length - ambiguous.length, unmatched, ambiguous },
       warnings,
       // Simulation scenarios a demo model may carry (ext:simFault "kind:value" on a part). Ignored for live sites.
@@ -584,5 +625,26 @@
     return out;
   }
 
-  return { parseTurtle, fromQuads, prefixesOf, graph, discover, points, matchRole, localId, KNOWN };
+  /**
+   * Flatten every property on every discovered system, plant and unassigned terminal.
+   * @param {any} model discover() result
+   */
+  function allPoints(model) {
+    /** @type {any[]} */
+    const out = [];
+    for (const a of (model && model.ahus) || []) out.push(...points(a));
+    const pushEquip = (/** @type {any} */ e, /** @type {string} */ scope) => {
+      if (!e) return;
+      for (const p of e.props || []) out.push({ ...p, equipment: e.id, part: e.id, part_kind: e.kind, part_label: e.label, scope });
+      for (const p of e.parts || []) {
+        for (const q of p.props || []) out.push({ ...q, equipment: e.id, part: p.id, part_kind: p.kind, part_label: p.label, scope });
+      }
+    };
+    for (const p of (model && model.plants) || []) pushEquip(p, 'plant');
+    for (const t of (model && model.unassigned) || []) pushEquip(t, 'unassigned');
+    for (const o of (model && model.other) || []) pushEquip(o, 'other');
+    return out;
+  }
+
+  return { parseTurtle, fromQuads, prefixesOf, graph, discover, points, allPoints, matchRole, localId, KNOWN };
 });

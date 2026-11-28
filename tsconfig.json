@@ -8,6 +8,6 @@
     "static/roles-223p.js", "static/s223.js",
     "static/demo-data.js", "static/demo.js", "static/api.js", "static/dom.js", "static/machine-view.js", "static/week-grid.js",
     "static/schedule-view.js", "static/airpath.js", "static/history-view.js",
-    "static/haystack-bind.js", "static/tags-223p.js", "static/model-source.js", "static/twin.js", "static/twin-view.js", "static/app.js"
+    "static/haystack-bind.js", "static/tags-223p.js", "static/model-source.js", "static/systems.js", "static/ftest-strategies.js", "static/ftest.js", "static/deficiencies.js", "static/graphic.js", "static/graphic-view.js", "static/app.js"
   ]
 }

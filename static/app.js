@@ -66,7 +66,7 @@
     if (demo) $('footer').textContent = 'Demo mode: fixture data from examples/site-config.example.json on a 60x clock. Nothing is sent to any station.';
 
     const machine = g.NfftMachineView.mount($('machineSvg'));
-    const twin = g.NfftTwinView.mount({ api, demo, notify });
+    const graphic = g.NfftGraphicView.mount({ api, demo, notify });
     const schedule = g.NfftScheduleView.mount({
       api,
       notify,
@@ -242,14 +242,15 @@
       else if (tab === 'equipment') renderEquipment();
       else if (tab === 'history') renderHistory();
       else if (tab === 'schedule') schedule.refresh();
-      if (tab === 'twin') twin.activate();
-      else twin.deactivate();
+      if (tab === 'graphic') graphic.activate();
+      else graphic.deactivate();
     }
 
     async function pollStatus() {
       try {
         status = await api.status();
         statusOk = Boolean(status && status.ok !== false && status.state);
+        if (graphic && graphic.setStatus) graphic.setStatus(status);
       } catch (err) {
         statusOk = false;
       }
@@ -302,7 +303,7 @@
       setInterval(() => { if (tab === 'overview') renderOverview(); else renderBadge(); }, 1000);
       setInterval(() => { if (tab === 'history') renderHistory(); }, 30000);
       if (params.get('play') === '1' && tab === 'equipment') $('playBtn').click();
-      g.NfftTwinReplay = (/** @type {number} */ f) => twin.replayAt(f);
+      g.NfftGraphicDebug = graphic;
     }
     boot();
   }

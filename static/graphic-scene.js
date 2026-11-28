@@ -1,13 +1,20 @@
-// Digital twin 3D scene: draws a layout from NfftTwin.layout (built from the 223P model) and animates it from
+// Functional test graphic 3D scene: draws a layout from NfftGraphic.layout (built from the 223P model) and animates it from
 // sim or replay frames. Procedural geometry only, three.js r170 vendored in static/vendor/three. Display only:
-// nothing here reads or writes NF. Loaded with a dynamic import when the twin tab first opens.
+// nothing here reads or writes NF. Loaded with a dynamic import when the graphic tab first opens.
 import * as THREE from './vendor/three/three.module.min.js';
 import { OrbitControls } from './vendor/three/OrbitControls.js';
 
-const C = {
+const DARK = {
   bg: 0x0b1020, panel: 0x121a30, line: 0x24304f, text: 0xe6ebf5, muted: 0x8a96b3, accent: 0x4cc9f0,
   warm: 0xf8961e, hot: 0xf94144, cool: 0x4361ee, good: 0x43aa8b, metal: 0x5b6785, amber: 0xffb703,
+  grid: 0x162040, hw: 0xc45c26, chw: 0x2a6fdb,
 };
+const LIGHT = {
+  bg: 0xe8edf6, panel: 0xffffff, line: 0x9aa6c3, text: 0x1b2437, muted: 0x5c6b89, accent: 0x1d7ea8,
+  warm: 0xd97816, hot: 0xc03538, cool: 0x2f4fd0, good: 0x2c8a6e, metal: 0x6a7590, amber: 0xc48a00,
+  grid: 0xc5cde0, hw: 0xb14e1c, chw: 0x1d5fc4,
+};
+let C = DARK;
 
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.55, ...o });
 const glass = (color, opacity) => new THREE.MeshStandardMaterial({ color, transparent: true, opacity, depthWrite: false, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide });
@@ -106,6 +113,50 @@ function valve(hue) {
   return g;
 }
 
+function boiler(size) {
+  const g = new THREE.Group();
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(size[2] * 0.38, size[2] * 0.38, size[1] * 0.9, 24), mat(C.metal));
+  tank.rotation.z = Math.PI / 2;
+  const fire = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), mat(C.hot, { emissive: C.hot, emissiveIntensity: 0.6 }));
+  fire.position.set(0, -size[1] * 0.15, 0);
+  g.add(tank, fire);
+  g.userData.set = (on) => { fire.material.emissiveIntensity = on ? 0.8 : 0.05; };
+  return g;
+}
+
+function pump(size) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(Math.min(size[0], size[1]) * 0.42, 20, 14), mat(C.metal));
+  const impeller = new THREE.Group();
+  for (let i = 0; i < 5; i += 1) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, size[1] * 0.35, 0.1), mat(0xb8c2dc));
+    const arm = new THREE.Group();
+    b.position.y = size[1] * 0.15;
+    arm.add(b);
+    arm.rotation.z = (i / 5) * Math.PI * 2;
+    impeller.add(arm);
+  }
+  g.add(body, impeller);
+  g.userData.rotor = impeller;
+  return g;
+}
+
+/** Hydronic pipe (solid, not glass) along a polyline of points. */
+function pipe(path, medium) {
+  const g = new THREE.Group();
+  const color = medium === 'hot_water' ? C.hw : C.chw;
+  for (let i = 1; i < path.length; i += 1) {
+    const a = v3(path[i - 1]); const b = v3(path[i]);
+    const len = a.distanceTo(b);
+    if (len < 0.01) continue;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, len, 10), mat(color, { metalness: 0.45, roughness: 0.4 }));
+    mesh.position.copy(a.clone().add(b).multiplyScalar(0.5));
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    g.add(mesh);
+  }
+  return g;
+}
+
 /** Duct segment between two points, coloured by static pressure. */
 function duct(from, to, radius) {
   const a = v3(from), b = v3(to);
@@ -145,12 +196,13 @@ function particles(path, count, color) {
     out.z += j[1];
   };
   const tmp = new THREE.Vector3();
-  obj.userData.step = (dt, share) => {
-    const visible = Math.round(count * Math.max(0, Math.min(1, share)));
+  obj.userData.step = (dt, share, reduced) => {
+    const moving = share > 0.02 && !reduced;
+    const visible = moving ? Math.round(count * Math.max(0, Math.min(1, share))) : (share > 0.02 && reduced ? Math.round(count * 0.25) : 0);
     geo.setDrawRange(0, visible);
-    const speed = 0.05 + 0.35 * share;
+    const speed = moving ? 0.05 + 0.35 * share : 0;
     for (let i = 0; i < count; i += 1) {
-      u[i] = (u[i] + dt * speed) % 1;
+      if (moving) u[i] = (u[i] + dt * speed) % 1;
       at(u[i], tmp, jitter[i]);
       pos[i * 3] = tmp.x; pos[i * 3 + 1] = tmp.y; pos[i * 3 + 2] = tmp.z;
     }
@@ -161,16 +213,18 @@ function particles(path, count, color) {
 
 /**
  * @param {HTMLElement} host element to draw into (gets a canvas and a label layer)
- * @param {any} layout NfftTwin.layout(unit, points)
+ * @param {any} layout NfftGraphic.layout(unit, points)
  * @param {{ pressureColor: (pa: number, limit: number) => number[], staticLimitPa: number, preserveDrawingBuffer?: boolean }} opts
  */
-export function createTwinScene(host, layout, opts) {
+export function createGraphicScene(host, layout, opts) {
+  C = (opts && opts.theme === 'light') ? LIGHT : DARK;
+  const reduced = !!(opts && opts.reducedMotion) || (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: !!opts.preserveDrawingBuffer });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.setClearColor(C.bg, 1);
   host.appendChild(renderer.domElement);
   const labels = document.createElement('div');
-  labels.className = 'twin-labels';
+  labels.className = 'graphic-labels';
   host.appendChild(labels);
 
   const scene = new THREE.Scene();
@@ -187,7 +241,7 @@ export function createTwinScene(host, layout, opts) {
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.set(-6, 14, 10);
   scene.add(sun);
-  const grid = new THREE.GridHelper(80, 80, C.line, 0x162040);
+  const grid = new THREE.GridHelper(80, 80, C.line, C.grid);
   grid.position.set(center.x, -1.05, center.z);
   scene.add(grid);
 
@@ -206,7 +260,7 @@ export function createTwinScene(host, layout, opts) {
   const tags = [];
   const tag = (id, text, at, cls = '') => {
     const el = document.createElement('div');
-    el.className = `twin-tag ${cls}`;
+    el.className = `graphic-tag ${cls}`;
     el.textContent = text;
     labels.appendChild(el);
     tags.push({ el, at: v3(at), id });
@@ -222,7 +276,10 @@ export function createTwinScene(host, layout, opts) {
     else if (e.kind === 'fan') obj = fan(e.size);
     else if (e.kind === 'filter') obj = filterBank(e.size);
     else if (e.kind === 'valve') obj = valve(/cool/i.test(e.label) || (layout.elements.find((x) => x.id === e.host) || {}).kind === 'cooling_coil' ? C.cool : C.hot);
-    else obj = new THREE.Mesh(new THREE.BoxGeometry(e.size[0], e.size[1], e.size[2]), glass(C.metal, 0.12));
+    else if (e.kind === 'boiler') obj = boiler(e.size);
+    else if (e.kind === 'pump') obj = pump(e.size);
+    else if (e.kind === 'chiller') obj = new THREE.Mesh(new THREE.BoxGeometry(e.size[0], e.size[1], e.size[2]), mat(C.cool, { metalness: 0.4 }));
+    else obj = new THREE.Mesh(new THREE.BoxGeometry(e.size[0], e.size[1], e.size[2]), mat(C.metal, { roughness: 0.7 }));
     obj.position.set(e.pos[0], e.pos[1], e.pos[2]);
     scene.add(obj);
     objects.set(e.id, obj);
@@ -231,9 +288,12 @@ export function createTwinScene(host, layout, opts) {
     scene.add(o);
     outlines.set(e.id, o);
     if (e.host) {
-      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 8), mat(C.metal));
-      pipe.position.set(e.pos[0], 0.7, e.pos[2]);
-      scene.add(pipe);
+      const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 8), mat(C.metal));
+      drop.position.set(e.pos[0], 0.7, e.pos[2]);
+      scene.add(drop);
+    }
+    if (e.scope === 'plant' || e.scope === 'other' || e.kind === 'equipment') {
+      tag(e.id, e.label, [e.pos[0], e.pos[1] + (e.size[1] || 1) * 0.7, e.pos[2]], 'plant');
     }
   }
 
@@ -255,23 +315,26 @@ export function createTwinScene(host, layout, opts) {
     pivot.position.copy(v3(t.box)).add(new THREE.Vector3(0, 0, -0.35));
     pivot.add(blade);
     blade.rotation.x = Math.PI / 2;
-    const rh = coil([0.5, 0.6, 0.06], C.hot);
-    rh.rotation.y = Math.PI / 2;
-    rh.position.copy(v3(t.box)).add(new THREE.Vector3(0, 0, 0.35));
-    const vl = valve(C.hot);
-    vl.scale.setScalar(0.7);
-    vl.position.copy(v3(t.box)).add(new THREE.Vector3(0.55, 0.3, 0.35));
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.08, 2.0), mat(C.good, { transparent: true, opacity: 0.55, emissive: C.good, emissiveIntensity: 0.15 }));
-    floor.position.copy(v3(t.zonePos));
-    scene.add(box, edges, pivot, rh, vl, floor);
+    const rh = t.reheat ? coil([0.5, 0.6, 0.06], C.hot) : null;
+    if (rh) { rh.rotation.y = Math.PI / 2; rh.position.copy(v3(t.box)).add(new THREE.Vector3(0, 0, 0.35)); }
+    const vl = t.valve || t.reheat ? valve(C.hot) : null;
+    if (vl) { vl.scale.setScalar(0.7); vl.position.copy(v3(t.box)).add(new THREE.Vector3(0.55, 0.3, 0.35)); }
+    const floor = t.zone ? new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.08, 2.0), mat(C.good, { transparent: true, opacity: 0.55, emissive: C.good, emissiveIntensity: 0.15 })) : null;
+    if (floor) floor.position.copy(v3(t.zonePos));
+    scene.add(box, edges, pivot);
+    if (rh) scene.add(rh);
+    if (vl) scene.add(vl);
+    if (floor) scene.add(floor);
     const o = outline([0.9, 0.75, 1.3]);
     o.position.copy(box.position);
     scene.add(o);
     if (t.damper) outlines.set(t.damper, o);
-    const vo = outline([0.3, 0.6, 0.3]);
-    vo.position.copy(vl.position);
-    scene.add(vo);
-    if (t.valve) outlines.set(t.valve, vo);
+    if (vl) {
+      const vo = outline([0.3, 0.6, 0.3]);
+      vo.position.copy(vl.position);
+      scene.add(vo);
+      if (t.valve) outlines.set(t.valve, vo);
+    }
     const flow = particles(t.path, 90, C.accent);
     scene.add(flow);
     const name = tag(t.id, t.label, [t.box[0], t.box[1] + 0.85, t.box[2]], 'terminal');
@@ -283,6 +346,13 @@ export function createTwinScene(host, layout, opts) {
     const p = particles(i.path, 60, C.muted);
     scene.add(p);
     return { ...i, p };
+  });
+  const pipes = (layout.pipes || []).map((p) => {
+    const g = pipe(p.path || [p.from, p.to], p.medium);
+    scene.add(g);
+    const bubbles = particles(p.path || [p.from, p.to], 40, p.medium === 'hot_water' ? C.hw : C.chw);
+    scene.add(bubbles);
+    return { ...p, g, bubbles };
   });
   const unitRead = tag(`${cs.id}:read`, '', [casing.position.x, cs.from[1] - 0.45, cs.to[2] + 0.2], 'read');
 
@@ -315,10 +385,12 @@ export function createTwinScene(host, layout, opts) {
       const ts = s.terminals[x.t.index];
       x.pivot.rotation.y = 0;
       x.pivot.children[0].rotation.y = (Math.PI / 2) * (ts.blade / 100);
-      x.rh.userData.set(ts.reheat);
-      x.vl.userData.set(ts.reheat);
-      const warmth = Math.max(-1, Math.min(1, (ts.zoneTemp - 23) / 2.5));
-      x.floor.material.color.setHex(warmth > 0.35 ? C.warm : warmth < -0.35 ? C.cool : C.good);
+      if (x.rh) x.rh.userData.set(ts.reheat);
+      if (x.vl) x.vl.userData.set(ts.reheat);
+      if (x.floor) {
+        const warmth = Math.max(-1, Math.min(1, ((ts.zoneTemp ?? 23) - 23) / 2.5));
+        x.floor.material.color.setHex(warmth > 0.35 ? C.warm : warmth < -0.35 ? C.cool : C.good);
+      }
       x.read.textContent = `${fmt(ts.flowLps)} L/s · cmd ${fmt(ts.command)}% · fb ${fmt(ts.feedback)}%`;
       if (x.zone) x.zone.textContent = `${x.t.zone.label} ${fmt(ts.zoneTemp, 1)} °C`;
     }
@@ -342,17 +414,29 @@ export function createTwinScene(host, layout, opts) {
       const s = state.scene;
       for (const e of layout.elements) {
         const obj = objects.get(e.id);
-        if (obj && obj.userData.rotor) obj.userData.rotor.rotation.x += dt * (s.fanOn ? s.fanSpeed / 100 : 0) * 14;
+        if (obj && obj.userData.rotor && !reduced) obj.userData.rotor.rotation.x += dt * (s.fanOn ? s.fanSpeed / 100 : 0) * 14;
       }
       for (const x of terms) {
         const ts = s.terminals[x.t.index];
-        x.flow.userData.step(dt, ts.flowLps / Math.max(1, ts.maxLps));
+        const share = ts.flowKnown === false ? 0 : ts.flowLps / Math.max(1, ts.maxLps);
+        x.flow.userData.step(dt, s.fanOn ? share : 0, reduced);
       }
       const totalMax = s.terminals.reduce((a, t) => a + t.maxLps, 0) || 1;
       for (const i of intakes) {
         const e = layout.elements.find((x) => x.id === i.part);
         const pct = e && e.command && (state.values[e.command] ?? null) !== null ? Number(state.values[e.command]) / 100 : 0.5;
-        i.p.userData.step(dt, (s.totalLps / totalMax) * pct);
+        i.p.userData.step(dt, s.fanOn ? (s.totalLps / totalMax) * pct : 0, reduced);
+      }
+      const waterOn = s.fanOn || (s.heating || 0) > 2 || (s.cooling || 0) > 2;
+      for (const pipe of pipes) {
+        const on = pipe.medium === 'hot_water' ? ((s.heating || 0) > 2 || waterOn) : ((s.cooling || 0) > 2 || waterOn);
+        pipe.bubbles.userData.step(dt, on ? 0.55 : 0, reduced);
+      }
+      if (!reduced) {
+        for (const e of layout.elements) {
+          const obj = objects.get(e.id);
+          if (obj && obj.userData.rotor && e.kind === 'pump') obj.userData.rotor.rotation.x += dt * (waterOn ? 8 : 0);
+        }
       }
     }
     controls.update();

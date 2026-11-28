@@ -29,6 +29,7 @@ const ALWAYS = [
   'hooks/lib/model/vocabulary.js',
   'hooks/lib/roles_sync.js',
   'hooks/lib/runtime.js',
+  'hooks/lib/sim.js',
   'hooks/lib/model/index.js',
   'hooks/lib/plan.js',
   'hooks/lib/nf/client.js',
@@ -47,7 +48,11 @@ const ALWAYS = [
   'static/haystack-bind.js',
   'static/tags-223p.js',
   'static/model-source.js',
-  'static/twin.js',
+  'static/systems.js',
+  'static/ftest-strategies.js',
+  'static/ftest.js',
+  'static/deficiencies.js',
+  'static/graphic.js',
 ];
 
 const WHEN_PRESENT = [

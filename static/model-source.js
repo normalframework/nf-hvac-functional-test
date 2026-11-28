@@ -1,5 +1,5 @@
 /**
- * Where the twin's model comes from, decided at runtime with no configuration.
+ * Where the graphic's model comes from, decided at runtime with no configuration.
  *
  *   - Open-FDD installed and answering: read the Haystack Turtle its `rdf` hook serves (Open-FDD's own graph of the
  *     NF tags) and derive 223P from it. One run per re-check, first page only when its snapshot is unchanged.
@@ -136,6 +136,27 @@
   }
 
   /**
+   * Latest values for the graphic. Queries only the given equipment ids (equipRef), never a bare site-wide poll.
+   * @param {(body: any) => Promise<any[]>} queryAll
+   * @param {{ uuids?: string[], equipIds?: string[] }} sel
+   */
+  async function loadValues(queryAll, sel) {
+    /** @type {Record<string, { value: any, ts: any }>} */
+    const values = {};
+    const want = sel && sel.uuids && sel.uuids.length ? new Set(sel.uuids) : null;
+    for (const id of (sel && sel.equipIds) || []) {
+      if (!id) continue;
+      const rows = await queryAll({ layer: 'default', structuredQuery: { field: { property: 'equipRef', text: id } } });
+      for (const r of rows) {
+        if (want && !want.has(r.uuid)) continue;
+        const ts = r.latestTs || r.ts || (r.attrs || {}).lastTs || null;
+        values[r.uuid] = { value: r.latestValue, ts };
+      }
+    }
+    return values;
+  }
+
+  /**
    * @param {{
    *   callOpenFddHook?: ((hook: string, args: Record<string, string>, opts: { signal: any }) => Promise<any>) | null,
    *   loadRecords: () => Promise<{ model: any[], points: any[] }>,
@@ -205,5 +226,5 @@
     };
   }
 
-  return { createModelSource, readOpenFdd, localTurtle, loadRecords, sha256, withTimeout, OPEN_FDD_APP, DEFAULTS };
+  return { createModelSource, readOpenFdd, localTurtle, loadRecords, loadValues, sha256, withTimeout, OPEN_FDD_APP, DEFAULTS };
 });

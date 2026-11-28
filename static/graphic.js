@@ -1,14 +1,14 @@
 /**
- * Digital twin simulation and functional-test playback, driven only by a discovered 223P unit
+ * Functional test graphic simulation and functional-test playback, driven only by a discovered 223P unit
  * (NfftS223.discover). Nothing here names equipment or points: every input, output and test step is found
  * by its Open-FDD role on the model. The model is deterministic (no randomness, no wall clock), so a run
  * replays the same frames every time. Pass/fail, limits, interlocks, timeouts and release are plain code.
  *
- * Browser global NfftTwin; CommonJS for tests. Never talks to NF: the sim is the only writer here.
+ * Browser global NfftGraphic; CommonJS for tests. The sim is used only behind ?demo=1. Live values are applied with liveFrame and never written here.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
-  else /** @type {any} */ (root).NfftTwin = factory();
+  else /** @type {any} */ (root).NfftGraphic = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
@@ -55,7 +55,7 @@
    * @param {Record<string, any>} [values] latest values by point id (limits the model itself does not carry)
    */
   function bind(unit, points, values = {}) {
-    const positive = (/** @type {any} */ v) => (v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
+    const positive = (/** @type {any} */ v) => (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
     const all = points(unit);
     /** @param {string} equipment @param {string} role */
     const find = (equipment, role) => all.find((p) => p.equipment === equipment && p.role === role) || null;
@@ -309,11 +309,11 @@
    * @param {{ target: number, feedback: number, flow: number|null, expectedAtCommand: number|null, expectedAtFeedback: number|null, tolerance: number, flowTolerance: number, reached: boolean, moved: boolean }} s
    */
   function diagnose(s) {
-    const near = (/** @type {number|null} */ a, /** @type {number|null} */ b, /** @type {number} */ tol) => (a ?? null) !== null && (b ?? null) !== null && Math.abs(a - b) <= Math.max(tol * Math.abs(b), 5);
+    const near = (/** @type {number|null} */ a, /** @type {number|null} */ b, /** @type {number} */ tol) => a !== undefined && a !== null && b !== undefined && b !== null && Math.abs(a - b) <= Math.max(tol * Math.abs(b), 5);
     const feedbackOk = Math.abs(s.feedback - s.target) <= s.tolerance;
     const flowMatchesCommand = near(s.flow, s.expectedAtCommand, s.flowTolerance);
     const flowMatchesFeedback = near(s.flow, s.expectedAtFeedback, s.flowTolerance);
-    if (feedbackOk && ((s.flow ?? null) === null || flowMatchesCommand)) return { pass: true, cause: null, explanation: [] };
+    if (feedbackOk && ((s.flow === undefined || s.flow === null) || flowMatchesCommand)) return { pass: true, cause: null, explanation: [] };
     if (feedbackOk && !flowMatchesCommand) {
       return {
         pass: false,
@@ -334,12 +334,12 @@
         ],
       };
     }
-    if (!feedbackOk && ((s.flow ?? null) === null || flowMatchesFeedback)) {
+    if (!feedbackOk && ((s.flow === undefined || s.flow === null) || flowMatchesFeedback)) {
       return {
         pass: false,
         cause: 'actuator_binding',
         explanation: [
-          `Commanded ${s.target}%, feedback stalled at ${round(s.feedback)}%${(s.flow ?? null) !== null ? ` and airflow ${round(s.flow)} L/s agrees with the stalled position` : ''}.`,
+          `Commanded ${s.target}%, feedback stalled at ${round(s.feedback)}%${s.flow !== undefined && s.flow !== null ? ` and airflow ${round(s.flow)} L/s agrees with the stalled position` : ''}.`,
           `${s.moved ? 'The actuator moved and then stopped short' : 'The actuator did not move'} before the ${s.reached ? 'capture' : 'timeout'}: suspect actuator binding or a mechanical obstruction of the blade.`,
         ],
       };
@@ -382,7 +382,7 @@
       sim.step(1);
       const r = snapshot();
       if (r.t - t0 >= maxRunS && !stopReason) stopReason = 'run_timeout';
-      if ((opts.abortAtS ?? null) !== null && r.t - t0 >= opts.abortAtS && !stopReason) stopReason = 'operator_abort';
+      if (opts.abortAtS !== undefined && opts.abortAtS !== null && r.t - t0 >= opts.abortAtS && !stopReason) stopReason = 'operator_abort';
       if (r.scene.staticPa > plan.staticLimitPa && !stopReason) stopReason = 'interlock_static_pressure';
       return r;
     };
@@ -464,7 +464,7 @@
           step_id: s.step_id,
           target: s.target,
           feedback: round(fbAvg),
-          flow: (flowAvg ?? null) === null ? null : round(flowAvg),
+          flow: (flowAvg === undefined || flowAvg === null) ? null : round(flowAvg),
           expected_flow: t.flow ? round(sim.expectedFlow(index, s.target)) : null,
           settled_s: waited,
           timed_out: !reached,
@@ -519,10 +519,10 @@
    * @param {any} unit
    * @param {(unit: any) => any[]} points
    */
-  function layout(unit, points) {
+  function layout(unit, points, model) {
     const pts = points(unit);
     const STEP = 1.9;
-    const onPath = unit.parts.filter((/** @type {any} */ p) => (p.layer ?? null) !== null);
+    const onPath = unit.parts.filter((/** @type {any} */ p) => p.layer !== undefined && p.layer !== null);
     const layers = new Map();
     for (const p of onPath) {
       if (!layers.has(p.layer)) layers.set(p.layer, []);
@@ -545,7 +545,7 @@
       });
     }
     const byId = new Map(elements.map((e) => [e.id, e]));
-    for (const p of unit.parts.filter((/** @type {any} */ q) => (q.layer ?? null) === null)) {
+    for (const p of unit.parts.filter((/** @type {any} */ q) => (q.layer === undefined || q.layer === null))) {
       const host = p.links && p.links.length ? byId.get(p.links[0]) : null;
       const pos = host ? [host.pos[0], 1.25, host.pos[2]] : [maxLayer * STEP / 2, 1.25, -width / 2];
       elements.push({ id: p.id, kind: p.kind, label: p.label, scope: 'ahu', pos, size: [0.35, 0.35, 0.35], host: host ? host.id : null, command: cmdOf(p.id, /command$/) });
@@ -558,14 +558,20 @@
     }
     const casing = { id: unit.id, label: unit.label, from: [-STEP / 2, -0.8, -width / 2], to: [maxLayer * STEP + STEP / 2, 0.8, width / 2] };
     const outletX = casing.to[0];
+    const nTerm = unit.terminals.length;
+    const banks = nTerm > 6 ? 2 : 1;
+    const pitch = nTerm <= 1 ? 3.2 : nTerm <= 3 ? 3.6 : nTerm <= 6 ? 2.8 : 2.2;
     const terminals = unit.terminals.map((/** @type {any} */ t, /** @type {number} */ i) => {
-      const x = outletX + 2.6 + i * 3.8;
+      const col = banks === 1 ? i : Math.floor(i / banks);
+      const bank = banks === 1 ? 1 : (i % banks === 0 ? 1 : -1);
+      const x = outletX + 2.6 + col * pitch;
       const damper = t.parts.find((/** @type {any} */ p) => p.kind === 'damper');
       const reheat = t.parts.find((/** @type {any} */ p) => /coil/.test(p.kind));
       const valve = t.parts.find((/** @type {any} */ p) => p.kind === 'valve');
       const tap = [x, 0, 0];
-      const box = [x, 0, width / 2 + 2.6];
-      const zone = [x, -0.95, width / 2 + 5.4];
+      const boxZ = bank * (width / 2 + 2.6);
+      const box = [x, 0, boxZ];
+      const zone = [x, -0.95, boxZ + (bank > 0 ? 2.8 : -2.8)];
       return {
         id: t.id,
         index: i,
@@ -593,8 +599,134 @@
     /** point id -> element id it belongs to (for amber and red outlines) */
     const pointPart = {};
     for (const p of pts) /** @type {any} */ (pointPart)[p.id] = p.part;
-    const center = [(casing.from[0] + trunkEnd) / 2 + 1.5, 0, width / 2 + 2.4];
-    return { casing, elements, terminals, ducts, intakes, pointPart: /** @type {Record<string, string>} */ (pointPart), center };
+    let center = [(casing.from[0] + trunkEnd) / 2 + 1.5, 0, width / 2 + 2.4];
+
+    // Hydronic plants and unknown equipment from the rest of the discovered model (optional third argument).
+    /** @type {any[]} */
+    const pipes = [];
+    /** @type {any[]} */
+    const plants = [];
+    if (model) {
+      const plantList = model.plants || [];
+      const hw = plantList.filter((/** @type {any} */ p) => p.kind === 'boiler' || (p.kind === 'pump' && /hot|heat|boiler/i.test(p.label)));
+      const chw = plantList.filter((/** @type {any} */ p) => p.kind === 'chiller' || (p.kind === 'pump' && /chill|cool/i.test(p.label)));
+      const used = new Set();
+      const placePlant = (/** @type {any[]} */ group, /** @type {number} */ zSide, /** @type {string} */ medium) => {
+        group.forEach((/** @type {any} */ p, /** @type {number} */ i) => {
+          if (used.has(p.id)) return;
+          used.add(p.id);
+          const pos = [casing.from[0] + i * 2.2, 0, zSide * (width / 2 + 6.2)];
+          const el = { id: p.id, kind: p.kind || 'equipment', label: p.label, scope: 'plant', pos, size: p.kind === 'pump' ? [0.8, 0.8, 0.8] : [1.4, 1.3, 1.1], command: cmdOf(p.id, /command$|status$/) };
+          elements.push(el);
+          plants.push(el);
+          // Pipes from the plant to every heating/cooling coil in this unit (and terminal reheat).
+          const coils = elements.filter((e) => (medium === 'hot_water' ? /heating_coil/.test(e.kind) : /cooling_coil/.test(e.kind)));
+          const reheats = medium === 'hot_water' ? terminals.filter((t) => t.reheat) : [];
+          for (const c of coils) {
+            pipes.push({ id: `pipe_${p.id}_${c.id}_sup`, medium, from: pos, to: c.pos, path: [pos, [pos[0], 0, c.pos[2]], c.pos] });
+          }
+          for (const t of reheats) {
+            pipes.push({ id: `pipe_${p.id}_${t.id}_sup`, medium, from: pos, to: t.box, path: [pos, [t.box[0], 0, pos[2]], t.box] });
+          }
+        });
+      };
+      placePlant(hw, -1, 'hot_water');
+      placePlant(chw, 1, 'chilled_water');
+      for (const p of plantList) {
+        if (used.has(p.id)) continue;
+        used.add(p.id);
+        const pos = [casing.from[0] - 2.5, 0, width / 2 + 6.2];
+        const el = { id: p.id, kind: p.kind || 'equipment', label: p.label, scope: 'plant', pos, size: [1.2, 1.1, 1.1] };
+        elements.push(el);
+        plants.push(el);
+      }
+      for (const o of model.other || []) {
+        const pos = [casing.to[0] + 1.5, 0, -(width / 2 + 5)];
+        elements.push({ id: o.id, kind: o.kind || 'equipment', label: o.label, scope: 'other', pos, size: [1.1, 1.1, 1.1] });
+      }
+      const xs = elements.map((e) => e.pos[0]).concat(terminals.map((t) => t.box[0]));
+      const zs = elements.map((e) => e.pos[2]).concat(terminals.map((t) => t.box[2]));
+      if (xs.length && zs.length) center = [(Math.min(...xs) + Math.max(...xs)) / 2, 0, (Math.min(...zs) + Math.max(...zs)) / 2];
+    }
+
+    return { casing, elements, terminals, ducts, intakes, pipes, plants, pointPart: /** @type {Record<string, string>} */ (pointPart), center };
+  }
+
+  /**
+   * Build a scene frame from live (or demo) point values. Missing readings stay null and flow animation stops.
+   * @param {any} unit
+   * @param {(unit: any) => any[]} pointsFn
+   * @param {Record<string, any>} values map of point id -> number | { value, ts }
+   */
+  function liveFrame(unit, pointsFn, values) {
+    const num = (/** @type {any} */ v) => {
+      if (v && typeof v === 'object' && !Array.isArray(v)) v = v.value;
+      if (v === true || v === 'true') return 1;
+      if (v === false || v === 'false') return 0;
+      if (v === undefined || v === null || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const pts = pointsFn(unit);
+    const find = (/** @type {string} */ equipment, /** @type {string} */ role) => pts.find((p) => p.equipment === equipment && p.role === role) || null;
+    const read = (/** @type {any} */ point) => (point ? num(values[point.id]) : null);
+    const first = (/** @type {string} */ equipment, /** @type {string[]} */ roles) => {
+      for (const r of roles) {
+        const p = find(equipment, r);
+        const v = read(p);
+        if ((v !== undefined && v !== null)) return v;
+      }
+      return null;
+    };
+    const fanSpeed = first(unit.id, ['supply_fan_speed_command', 'supply_fan_speed']);
+    const fanOnRaw = first(unit.id, ['supply_fan_operating_status', 'supply_fan_command']);
+    const fanOn = (fanOnRaw === undefined || fanOnRaw === null) ? ((fanSpeed !== undefined && fanSpeed !== null) && fanSpeed > 0) : fanOnRaw >= 0.5;
+    const terminals = (unit.terminals || []).map((/** @type {any} */ t) => {
+      const cmd = read(find(t.id, 'damper_position_command'));
+      const fb = read(find(t.id, 'damper_position'));
+      const flow = first(t.id, ['discharge_air_volume_flow_rate']);
+      const maxP = find(t.id, 'discharge_air_volume_flow_rate_maximum');
+      const maxLps = read(maxP) || num(maxP && maxP.value) || 300;
+      return {
+        id: t.id,
+        blade: (fb !== undefined && fb !== null) ? fb : ((cmd !== undefined && cmd !== null) ? cmd : 0),
+        feedback: fb,
+        command: cmd,
+        flowLps: (flow !== undefined && flow !== null) ? flow : 0,
+        flowKnown: (flow !== undefined && flow !== null),
+        maxLps,
+        reheat: first(t.id, ['terminal_unit_heating_valve_position_command', 'heating_valve_position']) || 0,
+        dat: first(t.id, ['terminal_unit_discharge_air_temperature', 'discharge_air_temperature']),
+        zoneTemp: first(t.id, ['zone_air_temperature']),
+      };
+    });
+    const totalLps = terminals.reduce((a, t) => a + (t.flowKnown ? t.flowLps : 0), 0);
+    const oa = first(unit.id, ['outdoor_air_intake_damper_position', 'outdoor_air_intake_damper_position_command']);
+    const ra = first(unit.id, ['return_damper_position', 'return_damper_position_command']);
+    const valueMap = {};
+    for (const p of pts) {
+      const v = num(values[p.id]);
+      if ((v !== undefined && v !== null)) valueMap[p.id] = v;
+    }
+    return {
+      t: 0,
+      values: valueMap,
+      scene: {
+        fanOn,
+        fanSpeed: (fanSpeed !== undefined && fanSpeed !== null) ? fanSpeed : (fanOn ? 70 : 0),
+        staticPa: first(unit.id, ['discharge_air_static_pressure']) || 0,
+        staticKnown: first(unit.id, ['discharge_air_static_pressure']) !== undefined && first(unit.id, ['discharge_air_static_pressure']) !== null,
+        totalLps,
+        oaFraction: (oa !== undefined && oa !== null) && (ra !== undefined && ra !== null) && (oa + ra) > 0 ? oa / (oa + ra) : ((oa !== undefined && oa !== null) ? oa / 100 : 0),
+        sat: first(unit.id, ['discharge_air_temperature', 'air_handling_unit_discharge_air_temperature']),
+        mat: first(unit.id, ['mixed_air_temperature']),
+        cooling: first(unit.id, ['cooling_valve_position', 'cooling_valve_position_command']) || 0,
+        heating: first(unit.id, ['heating_valve_position', 'heating_valve_position_command']) || 0,
+        outdoorDamper: oa || 0,
+        returnDamper: ra || 0,
+        terminals,
+      },
+    };
   }
 
   /** Static pressure colour ramp (fraction of the limit): low teal, design green, high amber, over limit red. */
@@ -612,5 +744,5 @@
     return [0.93, 0.3, 0.27];
   }
 
-  return { INPUTS, FEEDBACK, ENV, createSim, strokePlan, runStroke, diagnose, parseFault, flowCoefficient, bind, layout, pressureColor };
+  return { INPUTS, FEEDBACK, ENV, createSim, strokePlan, runStroke, diagnose, parseFault, flowCoefficient, bind, layout, liveFrame, pressureColor };
 });

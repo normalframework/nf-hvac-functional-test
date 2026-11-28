@@ -13,15 +13,35 @@ A Normal Framework (NF) app that runs automated HVAC functional tests on air han
 
 5. **Scheduled trigger.** An NF scheduled hook checks a stored recurrence (weekly, nth weekday, last weekday of the month, or one-off) in the site timezone, limited to weekly test windows and skipped on occupancy or holidays from an NF schedule. It is off by default. Dry-run mode rehearses on schedule with no writes. Live runs need an explicit arm step in the page.
 6. **Operator page.** A static page shows the run state machine with countdowns, the schedule editor and weekly grid, the points each step reads and writes on an air path diagram, active NF commands with their expiry, and run history. Open it with `?demo=1` to run it on fixture data with no station.
-7. **Digital twin (commissioning view).** A 3D view of each air handler and the terminals it feeds (three.js, rendered in the browser), with sliders for every actuatable point, a deterministic airflow and temperature sim, and a recorded terminal damper stroke test you can scrub back and forth. Equipment, parts, air-path order, sliders and test steps all come from the 223P model; pass/fail, limits, interlocks, timeouts and release are plain code. The sim writes nothing to NF; live values are read-only.
+7. **Functional test graphic (commissioning view).** A passive 3D view of each air-handling system the site model contains (three.js, rendered in the browser). It shows live NF values — damper positions, duct static, valves, fan speed, temperatures, airflow — drawn only from the 223P model (N VAV boxes, hydronic plant and pipes when the model has them). Missing components are not invented. A deterministic sim runs only with `?demo=1`. The live graphic has no control sliders; the only input is the hold duration when you start a test.
+8. **What can be tested, and a VAV max-cooling test.** A panel lists each piece of equipment and the tests it supports, including the override strategy each VAV box will use (writable airflow setpoint, boolean flush / max-flow, or enumerated box mode) and what is missing when a box cannot be tested. The first built-in test commands every testable VAV on the selected air handler to its cooling maximum for 15, 30 or 60 minutes, then flags deficiencies (starved box, damper open but low flow, duct static not maintained, fan at 100%). A prominent **Functional test ACTIVE** banner with per-system and site-wide Abort-and-release is shown while a run is in progress. The page can present many air handlers from one plugin install; unmapped VAVs sit in an Unassigned group and are not testable until they have a feed relationship.
+9. **Optional bench simulator.** A `sim` hook can create new local BACnet objects on a bench station so the graphic has fake AHU / VAV / reheat data to display. It is off by default and stays a no-op until `enableSimulator` is true and `simulatorConfirm` is the phrase `CREATE_LOCAL_SIM`. See [docs/SIMULATOR.md](docs/SIMULATOR.md).
 
 ### Model source and Open-FDD
 
-NF's Haystack tags are the source of truth: the twin's 223P model is derived from them on every build (tags → Open-FDD role per the roles file's binding rules → the 223P pattern of that role), never hand-edited or stored. When the Open-FDD app is installed on the same NF, the page reads Open-FDD's own graph through its read-only `rdf` hook instead of building a second one; when Open-FDD is absent, erroring or slow (5 s timeout, re-checked every 5 minutes while the tab is open) it builds the same Turtle from NF's point records with a vendored, unmodified copy of Open-FDD's `model.js`, so both paths give the same snapshot and the model is rebuilt only when tags change. One graph build is cached in the browser, no RDF validation runs at runtime (that stays in CI, as in Open-FDD), and nothing here writes to Open-FDD's data.
+NF's Haystack tags are the source of truth: the graphic's 223P model is derived from them on every build (tags → Open-FDD role per the roles file's binding rules → the 223P pattern of that role), never hand-edited or stored. When the Open-FDD app is installed on the same NF, the page reads Open-FDD's own graph through its read-only `rdf` hook instead of building a second one; when Open-FDD is absent, erroring or slow (5 s timeout, re-checked every 5 minutes while the tab is open) it builds the same Turtle from NF's point records with a vendored, unmodified copy of Open-FDD's `model.js`, so both paths give the same snapshot and the model is rebuilt only when tags change. One graph build is cached in the browser, no RDF validation runs at runtime (that stays in CI, as in Open-FDD), and nothing here writes to Open-FDD's data.
 
 Each plugin works alone or together: neither needs the other, and installing, removing or upgrading Open-FDD needs no reconfiguration here.
 
-Point roles use ASHRAE 223P-derived snake_case names (same convention as Open-FDD). The test plan is built from the equipment model. Haystack tags are the model path. The hooks still refuse Turtle input (D19); Oxigraph 0.5.13 is vendored for the page's twin only, and nothing runs OntoEnv or Shifty or fetches ontologies at runtime. A point is writable only when the model marks it writable. No site, equipment or point names are hard-coded.
+Point roles use ASHRAE 223P-derived snake_case names (same convention as Open-FDD). The test plan is built from the equipment model. Haystack tags are the model path. The hooks still refuse Turtle input (D19); Oxigraph 0.5.13 is vendored for the page's graphic only, and nothing runs OntoEnv or Shifty or fetches ontologies at runtime. A point is writable only when the model marks it writable. No site, equipment or point names are hard-coded.
+
+
+## VAV override strategies
+
+Sites can mix boxes whose airflow setpoints are BACnet-writable with boxes that only expose a boolean flush / max-flow point, or a multistate / enumerated box-mode point. The plugin does not hard-code one write method.
+
+Each VAV is assigned a small strategy module from the bound data model, or from an optional per-box `vav_override` object in the site config:
+
+| Strategy id | What it writes | Typical when |
+| --- | --- | --- |
+| `write_airflow_setpoint` | The box's `discharge_air_volume_flow_rate_setpoint` to its cooling maximum, then release | The setpoint is writable |
+| `toggle_boolean` | A boolean point (default `purge_operating_mode_command`) to a configured on/off value | The box has a flush or max-flow flag, not a writable airflow setpoint |
+| `set_multistate` | An enumerated / numeric mode point to a configured value, then a release value | The box exposes a mode enum |
+| `unsupported` | Nothing | No usable write path; the box is listed as not testable with the missing points |
+
+Legacy plan names `airflow_setpoint`, `flush_point` and `bas_toggle` still resolve (`bas_toggle` is the older shared AHU-level write, not a per-box write). Auto-detect prefers a writable airflow setpoint, then a per-box boolean, then a mode enum. An explicit `vav_override` always wins. Abort and guaranteed release undo whatever that strategy commanded.
+
+A vendor-neutral example (vendor A = writable setpoint, vendor B = boolean flush, a third box = enumerated mode) is in `docs/mixed-vendor-vav-overrides.json`.
 
 ## Development
 

@@ -1,0 +1,14 @@
+{
+  "hook": {
+    "name": "sim",
+    "entryPoint": "hooks/sim.js",
+    "mode": "MODE_SCHEDULED",
+    "schedule": {
+      "rrule": "RRULE:FREQ=SECONDLY;INTERVAL=10"
+    },
+    "invokeTimeout": "8s",
+    "globalVariables": [
+      { "label": "nfft_sim_enabled" }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-# Demo 223P model for the digital twin: one air handler feeding three single-duct terminals.
+# Demo 223P model for the functional test graphic: one air handler feeding three single-duct terminals.
 # The page builds the 3D scene, the controls and the stroke test from this graph alone; replace it with a
 # site's 223P Turtle and the view follows. Property patterns follow the Open-FDD role vocabulary.
 @prefix s223: <http://data.ashrae.org/standard223#> .

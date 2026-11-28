@@ -1,5 +1,5 @@
 /**
- * NF tags -> 223P. NF's Haystack tags are the source of truth; this derives the 223P view the twin walks, and
+ * NF tags -> 223P. NF's Haystack tags are the source of truth; this derives the 223P view the graphic walks, and
  * nothing here is hand-edited or stored.
  *
  *   1. haystackFromTurtle: read the Haystack Turtle that Open-FDD's own modelToTurtle builds (served by the
@@ -120,16 +120,30 @@
     const equipByIri = new Map(hs.equips.map((e) => [e.iri, e]));
     const isAhu = (/** @type {any} */ e) => e.markers.includes('ahu');
     const isTerminal = (/** @type {any} */ e) => e.markers.includes('airTerminalUnit') || e.markers.includes('vav');
+    const isBoiler = (/** @type {any} */ e) => e.markers.includes('boiler');
+    const isChiller = (/** @type {any} */ e) => e.markers.includes('chiller');
+    const isPump = (/** @type {any} */ e) => e.markers.includes('pump');
+    const isTower = (/** @type {any} */ e) => e.markers.includes('coolingTower');
+    const classOf = (/** @type {any} */ e) => {
+      if (isAhu(e)) return 's223:AirHandlingUnit';
+      if (isTerminal(e)) return 's223:SingleDuctTerminal';
+      if (isBoiler(e)) return 's223:Boiler';
+      if (isChiller(e)) return 's223:Chiller';
+      if (isPump(e)) return 's223:Pump';
+      if (isTower(e)) return 's223:CoolingTower';
+      return 's223:Equipment';
+    };
     /** @type {any[]} */
     const bindings = [];
     const report = { unbound: /** @type {string[]} */ ([]), ambiguous: /** @type {any[]} */ ([]), duplicates: /** @type {any[]} */ ([]) };
     let cpCount = 0;
 
     // Equipment classes and feeds (airRef on the terminal, or brick feeds / isFedBy).
+    // Unknown equipment is typed s223:Equipment so the graphic can draw a generic box.
     for (const e of hs.equips) {
-      if (isAhu(e)) add(e.iri, 'rdf:type', 's223:AirHandlingUnit');
-      else if (isTerminal(e)) add(e.iri, 'rdf:type', 's223:SingleDuctTerminal');
-      else continue;
+      add(e.iri, 'rdf:type', classOf(e));
+      // 223P patterns often apply_to s223:TerminalUnit; a single-duct box is one.
+      if (isTerminal(e)) add(e.iri, 'rdf:type', 's223:TerminalUnit');
       label(e.iri, e.label);
     }
     /** @type {Map<string, string[]>} ahu iri -> terminal iris */
@@ -197,8 +211,8 @@
       return /** @type {string} */ (spaces.get(t.iri));
     };
 
-    // Bind and emit every point of every AHU and terminal.
-    const relevant = hs.equips.filter((e) => isAhu(e) || isTerminal(e));
+    // Bind and emit every point of every modelled equipment (AHU, terminal, plant, unknown).
+    const relevant = hs.equips;
     for (const e of relevant) {
       const pts = hs.points.filter((p) => p.equip === e.iri);
       const r = bind.bindEquipment(pts, e.markers, vocab);
@@ -215,7 +229,11 @@
         if (zoneScoped && isTerminal(e)) owner = spaceOf(e);
         else if (zoneScoped) { warnings.push(`${p.label}: zone point on an air handler, not placed`); continue; }
         if (pat.equipment) {
-          owner = partOf(e.iri, pat.equipment, pat.equipment_role || null, `${e.label} ${localName(expand(pat.equipment)).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()}`);
+          // If the top equipment already is that class (a standalone boiler, pump, chiller), hang the property on it.
+          if (classOf(e) === pat.equipment) owner = e.iri;
+          else {
+            owner = partOf(e.iri, pat.equipment, pat.equipment_role || null, `${e.label} ${localName(expand(pat.equipment)).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()}`);
+          }
           if (pat.equipment_medium) cp(owner, 'in', pat.equipment_medium);
         }
         add(p.iri, 'rdf:type', pat.property_class || 's223:Property');
@@ -282,12 +300,57 @@
         connect(tout, cp(spaceOf(t), 'in', 's223:Fluid-Air'));
       }
     }
+    // Hydronic plants: connect a site's boiler / pump to heating coils, chiller / CHW pump to cooling coils.
+    // Prefer explicit feeds / isFedBy; if the site has exactly one plant of that medium, serve every matching coil.
+    const coilIris = (/** @type {string} */ cls) => {
+      /** @type {string[]} */
+      const found = [];
+      for (const t of triples) {
+        if (t.p === TYPE && t.o === expand(cls)) found.push(t.s);
+      }
+      return found;
+    };
+    const mediaOf = (/** @type {any} */ e) => {
+      if (isBoiler(e) || (isPump(e) && (e.markers.includes('hot') || e.markers.includes('hotWater')))) return 's223:Water-HotWater';
+      if (isChiller(e) || (isPump(e) && (e.markers.includes('chilled') || e.markers.includes('chilledWater')))) return 's223:Water-ChilledWater';
+      if (isPump(e)) return e.markers.includes('condenser') ? 's223:Water-Condenser' : 's223:Water-HotWater';
+      return null;
+    };
+    const fedBy = (/** @type {any} */ plant, /** @type {string[]} */ coils) => {
+      const named = [...plant.feeds, ...hs.equips.filter((a) => a.isFedBy.includes(plant.iri)).map((a) => a.iri)];
+      if (!named.length) return coils;
+      const want = new Set(named);
+      // A plant that feeds an AHU or terminal serves the coils contained by that equipment.
+      const served = coils.filter((c) => [...want].some((iri) => c === iri || c.startsWith(`${iri}--`)));
+      return served.length ? served : coils;
+    };
+    const hookup = (/** @type {any[]} */ plants, /** @type {string} */ coilCls, /** @type {string} */ medium) => {
+      const coils = coilIris(coilCls);
+      if (!plants.length || !coils.length) return;
+      const unique = plants.length === 1 ? plants : plants;
+      for (const plant of unique) {
+        const targets = plants.length === 1 ? coils : fedBy(plant, coils);
+        if (!targets.length) {
+          warnings.push(`${plant.label}: no ${medium} coils to connect`);
+          continue;
+        }
+        const supply = cp(plant.iri, 'out', medium, ['s223:Role-Supply']);
+        const ret = cp(plant.iri, 'in', medium, ['s223:Role-Return']);
+        for (const coil of targets) {
+          connect(supply, cp(coil, 'in', medium, ['s223:Role-Supply']), medium, 's223:Pipe');
+          connect(cp(coil, 'out', medium, ['s223:Role-Return']), ret, medium, 's223:Pipe');
+        }
+      }
+    };
+    hookup(hs.equips.filter((e) => mediaOf(e) === 's223:Water-HotWater' && (isBoiler(e) || isPump(e))), 's223:HeatingCoil', 's223:Water-HotWater');
+    hookup(hs.equips.filter((e) => mediaOf(e) === 's223:Water-ChilledWater' && (isChiller(e) || isPump(e))), 's223:CoolingCoil', 's223:Water-ChilledWater');
+
     const prefixes = { s223: NS.s223, qudt: NS.qudt, quantitykind: NS.quantitykind, unit: NS.unit, rdfs: NS.rdfs, ext: NS.ext };
     return { parsed: { triples, prefixes }, bindings, report, warnings };
   }
 
   /**
-   * Haystack Turtle -> discovered twin model, with the binding report.
+   * Haystack Turtle -> discovered graphic model, with the binding report.
    * @param {string} turtle
    * @param {{ oxigraph: any, s223: any, vocab: any, bind: any, scenarios?: { equip: string, part: string, spec: string }[] }} deps
    */

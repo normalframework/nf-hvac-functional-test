@@ -729,7 +729,6 @@ test('a restarted runner without live permission releases the live slot', async 
     confirmLive: true,
     config: {
       write: {
-        backend: 'bacnet_direct',
         command_lease_s: 300,
         keepalive_s: 60,
         release_retries: 1,

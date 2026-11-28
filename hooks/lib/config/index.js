@@ -24,6 +24,13 @@ function validateSiteConfig(input) {
     const priority = checkPriority(raw.write.bacnet_priority);
     if (!priority.ok) errors.push({ code: priority.code, path: 'write.bacnet_priority', message: priority.message });
   }
+  if (raw.write && raw.write.backend === 'bacnet_direct') {
+    errors.push({
+      code: 'backend_unsupported',
+      path: 'write.backend',
+      message: 'backend bacnet_direct is disabled: the NF direct write route (POST /api/v1/bacnet/writeproperty) is unverified and has no lease fail-safe; use nf_command',
+    });
+  }
   errors.push(...schemaIssues(raw));
   if (errors.length > 0) return { ok: false, errors };
   const config = applyDefaults(raw);

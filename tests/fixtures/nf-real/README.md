@@ -20,15 +20,16 @@ Behaviours these recordings pin down (the fake follows them):
 | unknown routes | GET answers the web console (200 html); other methods answer 405 html |
 | in-band errors | `commands/read` and `commands/write` answer 200 with `errors: [{point, error: {ts, message, error: {"@type", message}}}]`; there is NO `code` |
 | `platform/env` | the `name` filter is ignored: all variables come back, each identified by `id` (`BACNET_PRIORITY`), `name` is a display name, the value is `integer` as a string |
+| uuid lookup | there is no get-by-uuid route; `structuredQuery.field {property:"uuid", text}` finds exactly that point on any layer; every layer's record carries `hpldata` (`deviceAddress`, `property.objectId`, `hasPriorityArray`) |
 | `point/query` | no `pageSize` returns zero points (and the full `totalCount`); `uuid`, `uuids`, `equipRef` and other unknown fields are ignored; only `structuredQuery.field {property, text}` filters; `nextPageToken` is `""` |
 | `point/points` | answers `{results:[{uuid, success, newVersion, taskUuid}]}`; a write with no base layer is accepted and applies nothing; attrs merge |
 | `points/data` | `POST /api/v1/points/data` with `{points:[{uuid, values:[{ts, real}]}]}` answers `{success, taskUuid}` |
-| not NF routes | `/api/v1/data`, `/api/v1/point/upsert`, `/api/v2/bacnet/write`, `/api/v2/bacnet/read` all answer 405 |
+| not NF routes | `/api/v1/data`, `/api/v1/point/upsert`, `/api/v2/bacnet/write`, `/api/v2/bacnet/read` all answer 405 (the fake answers 405 too, `REMOVED_ROUTES`). `POST /api/v1/bacnet/writeproperty` DOES exist (400 on an empty body); its request shape is unverified and it is not used |
 | BACnet read | `GET /api/v1/bacnet/readproperty` with `device_address.mac` + `device_address.port_id`; errors are in-band 200 `{error:{errorClass, errorCode}}` |
 
 Still mock-only (no recording could be made): a successful command write on a driver-backed point (local simulated
-objects have no driver), the `commands/read` success row, `activeWrites` rows, the zombie row shape, the BACnet
-priority array read, `commands/clear`, and any real message text for guardrail or priority rejections.
+objects have no driver), the `commands/read` success row, `activeWrites` rows, the zombie row shape, the successful BACnet
+priority array read (the local objects have no priority array; slot encoding is a guess, and anything unparseable reads as unreadable), `commands/clear`, and any real message text for guardrail or priority rejections.
 The fake's `MOCK_ONLY_ROUTES` lists the routes it serves that real NF does not.
 
 To add a recording: query the live NF, scrub with the rules above, write the file with a unique `id` equal to its

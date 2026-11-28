@@ -82,20 +82,20 @@ test('priority array keeps other slots and null relinquishes only our slot', asy
   try {
     const uuid = '00000000-0000-4000-8000-0000000000b1';
     fake.seedAhu({ points: { outdoor_air_intake_damper_position_command: uuid } });
-    await client.bacnetWrite({ uuid, priority: 5, value: 40 });
-    await client.bacnetWrite({ uuid, priority: 8, value: 10 });
+    fake.writeSlot(uuid, 5, 40);
+    fake.writeSlot(uuid, 8, 10);
     let slots = await client.readPriorityArray({ uuid });
     assert.equal(slots.length, 16);
     assert.equal(slots[4], 40);
     assert.equal(slots[7], 10);
-    const present = await client.bacnetRead([{ uuid, property: 'PRESENT_VALUE' }]);
+    const present = { results: [{ value: fake.points.get(uuid).presentValue() }] };
     assert.equal(present.results[0].value, 40);
-    const cleared = await client.bacnetWrite({ uuid, priority: 8, value: null });
-    assert.equal(cleared.errors.length, 0);
+    fake.writeSlot(uuid, 8, null);
     slots = await client.readPriorityArray({ uuid });
     assert.equal(slots[7], null);
     assert.equal(slots[4], 40);
-    const rejected = await client.bacnetWrite({ uuid, priority: 1, value: 0 });
+    const lease = await client.startCommand({ name: 'ftest-prio', duration: '120s' });
+    const rejected = await writeAt(client, uuid, 1, 0, lease.id);
     assert.match(errorText(rejected.errors[0].error), /priority_rejected/);
     assert.equal((await client.readPriorityArray({ uuid }))[0], null);
   } finally {
@@ -149,12 +149,12 @@ test('ahu mix and vav profiles stay plausible', async () => {
       supply_fan_operating_status: '00000000-0000-4000-8000-0000000000d7',
     };
     fake.seedAhu({ points: ids, oat: 10, rat: 24, fanOn: true });
-    await client.bacnetWrite({ uuid: ids.outdoor_air_intake_damper_position_command, priority: 8, value: 0 });
-    const closed = await client.bacnetRead([{ uuid: ids.mixed_air_temperature, property: 'PRESENT_VALUE' }]);
+    fake.writeSlot(ids.outdoor_air_intake_damper_position_command, 8, 0);
+    const closed = { results: [{ value: fake.points.get(ids.mixed_air_temperature).presentValue() }] };
     assert.ok(closed.results[0].value > 23);
 
-    await client.bacnetWrite({ uuid: ids.outdoor_air_intake_damper_position_command, priority: 8, value: 100 });
-    const open = await client.bacnetRead([{ uuid: ids.mixed_air_temperature, property: 'PRESENT_VALUE' }]);
+    fake.writeSlot(ids.outdoor_air_intake_damper_position_command, 8, 100);
+    const open = { results: [{ value: fake.points.get(ids.mixed_air_temperature).presentValue() }] };
     assert.ok(open.results[0].value < 11);
 
     const box = {
@@ -163,7 +163,8 @@ test('ahu mix and vav profiles stay plausible', async () => {
       discharge_air_volume_flow_rate_maximum: '00000000-0000-4000-8000-0000000000e3',
     };
     fake.seedVav({ id: 'vav_01', profile: 'setpoint_readonly', points: box, maxFlow: 0.4 });
-    const readonly = await client.bacnetWrite({ uuid: box.discharge_air_volume_flow_rate_setpoint, priority: 8, value: 0.4 });
+    const lock = await client.startCommand({ name: 'ftest-readonly', duration: '120s' });
+    const readonly = await writeAt(client, box.discharge_air_volume_flow_rate_setpoint, 8, 0.4, lock.id);
     assert.match(errorText(readonly.errors[0].error), /not_commandable/);
 
     const writable = {
@@ -171,8 +172,8 @@ test('ahu mix and vav profiles stay plausible', async () => {
       discharge_air_volume_flow_rate_setpoint: '00000000-0000-4000-8000-0000000000e5',
     };
     fake.seedVav({ id: 'vav_02', profile: 'setpoint_writable', points: writable, maxFlow: 0.4 });
-    await client.bacnetWrite({ uuid: writable.discharge_air_volume_flow_rate_setpoint, priority: 8, value: 0.4 });
-    const flow = await client.bacnetRead([{ uuid: writable.discharge_air_volume_flow_rate, property: 'PRESENT_VALUE' }]);
+    fake.writeSlot(writable.discharge_air_volume_flow_rate_setpoint, 8, 0.4);
+    const flow = { results: [{ value: fake.points.get(writable.discharge_air_volume_flow_rate).presentValue() }] };
     assert.equal(flow.results[0].value, 0.4);
 
     const ignored = {
@@ -180,7 +181,7 @@ test('ahu mix and vav profiles stay plausible', async () => {
       discharge_air_volume_flow_rate_setpoint: '00000000-0000-4000-8000-0000000000e7',
     };
     fake.seedVav({ id: 'vav_03', profile: 'setpoint_ignored', points: ignored });
-    await client.bacnetWrite({ uuid: ignored.discharge_air_volume_flow_rate_setpoint, priority: 8, value: 0.4 });
+    fake.writeSlot(ignored.discharge_air_volume_flow_rate_setpoint, 8, 0.4);
     const slot = await client.readPriorityArray({ uuid: ignored.discharge_air_volume_flow_rate_setpoint });
     assert.equal(slot[7], null);
 
@@ -208,8 +209,8 @@ test('ahu mix and vav profiles stay plausible', async () => {
       purge_operating_mode_command: '00000000-0000-4000-8000-0000000000eb',
     };
     fake.seedVav({ id: 'vav_05', profile: 'flush_capable', points: flush, maxFlow: 0.55 });
-    await client.bacnetWrite({ uuid: flush.purge_operating_mode_command, priority: 8, value: true });
-    const flushed = await client.bacnetRead([{ uuid: flush.discharge_air_volume_flow_rate, property: 'PRESENT_VALUE' }]);
+    fake.writeSlot(flush.purge_operating_mode_command, 8, true);
+    const flushed = { results: [{ value: fake.points.get(flush.discharge_air_volume_flow_rate).presentValue() }] };
     assert.equal(flushed.results[0].value, 0.55);
 
     fake.failNext(1, { drop: true });

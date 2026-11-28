@@ -1,0 +1,16 @@
+{
+ "id": "routes__bacnet_write_post",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/bacnet/write",
+  "body": {}
+ },
+ "response": {
+  "status": 405,
+  "contentType": "text/html",
+  "body": {
+   "$kind": "spa-html",
+   "$prefix": ""
+  }
+ }
+}

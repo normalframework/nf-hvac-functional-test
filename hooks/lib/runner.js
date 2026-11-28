@@ -622,10 +622,8 @@ class Runner {
    * @returns {Promise<any[] | 'unreadable'>}
    */
   async readSlots(uuid) {
-    const reply = await this.client.bacnetRead([{ uuid, property: 'PRIORITY_ARRAY' }]);
-    if (!reply || (reply.errors && reply.errors.length)) return 'unreadable';
-    const slots = reply.results && reply.results[0] ? reply.results[0].value : null;
-    return parsePriorityArray(slots);
+    const slots = await this.client.readPriorityArray({ uuid });
+    return slots ? parsePriorityArray(slots) : 'unreadable';
   }
 
   async overrideConflict() {

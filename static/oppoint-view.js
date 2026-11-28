@@ -113,7 +113,8 @@
     /** A bow-tie valve with its position. */
     function valveSymbol(/** @type {number} */ x, /** @type {number} */ y, /** @type {number|null} */ pct) {
       const open = pct !== null && pct > 5;
-      return [SG.valve(x, y, open), T(x, y - 13, pctText(pct), pct === null ? 'op-t op-muted' : 'op-t')];
+      // The percent sits beside the valve, off the pipe.
+      return [SG.valve(x, y, open), SG.text(x + 12, y + 4, pctText(pct), { max: 6, anchor: 'start', cls: `sg-t${pct === null ? ' sg-muted' : ''}` })];
     }
 
     /** Pump loop schematic: pump with VFD, loop members with live valve percent, flow meter, DP sensor with setpoint. */

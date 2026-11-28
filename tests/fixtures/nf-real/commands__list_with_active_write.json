@@ -1,0 +1,38 @@
+{
+ "id": "commands__list_with_active_write",
+ "request": {
+  "method": "GET",
+  "path": "/api/v2/command"
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "commands": [
+    {
+     "id": "1",
+     "name": "contract-probe",
+     "startedAt": "2026-11-28T16:07:56.399371252Z",
+     "expiresAt": "2026-11-28T16:08:56.396009177Z",
+     "activeWrites": [
+      {
+       "point": {
+        "uuid": "00000000-0000-4000-8000-0000000000a1",
+        "layer": "default"
+       },
+       "value": {
+        "real": 1
+       },
+       "systemPriority": "0",
+       "ts": "2026-11-28T16:07:57.085097406Z",
+       "cancelOnConflict": true
+      }
+     ],
+     "pendingWrites": []
+    }
+   ],
+   "totalCount": "1"
+  }
+ },
+ "note": "activeWrites row: {point, value, systemPriority, ts, cancelOnConflict}; no BACnet priority."
+}

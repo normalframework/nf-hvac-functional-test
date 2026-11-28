@@ -1,6 +1,6 @@
 'use strict';
 
-const { encodeValue, readArray } = require('./verify');
+const { encodeValue, readArray, slotMatches } = require('./verify');
 const { NfError, errorText } = require('../nf/client');
 const { formatDuration } = require('../nf/duration');
 
@@ -136,7 +136,7 @@ class NfCommandWriter {
         });
         const zombie = (zombies.zombies || []).some((item) => item.uuid === entry.uuid);
         const slots = await readArray(this.client, entry);
-        const stillOurs = slots !== 'unreadable' && slots[entry.priority - 1] === entry.value;
+        const stillOurs = slots !== 'unreadable' && slotMatches(slots[entry.priority - 1], entry.value);
         if (!cancelled || stillListed || zombie || slots === 'unreadable' || stillOurs) failed.push(entry);
         else verified.push(entry);
       }

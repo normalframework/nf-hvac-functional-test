@@ -1,0 +1,44 @@
+{
+ "id": "commands__write_applied",
+ "request": {
+  "method": "POST",
+  "path": "/api/v2/command/write",
+  "body": {
+   "command_id": 1,
+   "cancel_on_conflict": true,
+   "writes": [
+    {
+     "point": {
+      "uuid": "00000000-0000-4000-8000-0000000000a1",
+      "layer": "default"
+     },
+     "priority": 16,
+     "value": {
+      "real": 1
+     }
+    }
+   ]
+  }
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "writes": [
+    {
+     "point": {
+      "uuid": "00000000-0000-4000-8000-0000000000a1",
+      "layer": "default"
+     },
+     "value": {
+      "real": 1
+     },
+     "systemPriority": "0",
+     "cancelOnConflict": true
+    }
+   ],
+   "errors": []
+  }
+ },
+ "note": "Command write on a driver-backed point. The request priority (16) is accepted and ignored; NF writes its BACNET_PRIORITY slot. The row carries systemPriority, not priority."
+}

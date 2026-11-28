@@ -110,12 +110,13 @@ function createFake(options = {}) {
    * @param {number} priority
    * @param {number | boolean | null} value
    * @param {number} commandId
+   * @param {number} [requested] the request's `priority`; real NF ignores it, this mock still rejects 1 and 2 (mock-only)
    */
-  function applyWrite(uuid, priority, value, commandId) {
+  function applyWrite(uuid, priority, value, commandId, requested = priority) {
     const object = points.get(uuid);
     if (!object) return { error: { code: 'not_found', message: `unknown point ${uuid}` } };
     if (object.offline) return { error: { code: 'offline', message: `device offline ${uuid}` } };
-    if (priority === 1 || priority === 2) {
+    if (requested === 1 || requested === 2 || priority === 1 || priority === 2) {
       return { error: { code: 'priority_rejected', message: 'BACnet priorities 1 and 2 are rejected' } };
     }
     if (guardrails && object.unit === '%' && typeof value === 'number' && (value < 0 || value > 100)) {
@@ -224,7 +225,9 @@ function createFake(options = {}) {
       only(write, ['point', 'value', 'priority']);
       only(write.point || {}, ['uuid', 'layer']);
       const uuid = write.point.uuid;
-      const priority = Number(write.priority);
+      // Recorded on a real NF: the request `priority` is accepted but ignored; the command service writes the slot
+      // named by its process-wide BACNET_PRIORITY (reported as `systemPriority: "0"` on the write row, the command-conflict rank).
+      const priority = Number.isInteger(commandPriority) ? Number(commandPriority) : Number(write.priority);
       const value = decodeValue(write.value);
       if (body.cancel_on_conflict || write.cancel_on_conflict) {
         const conflict = [...commands.values()].some((other) => other.active && other.id !== command.id
@@ -234,11 +237,12 @@ function createFake(options = {}) {
           continue;
         }
       }
-      const result = applyWrite(uuid, priority, value, command.id);
+      const result = applyWrite(uuid, priority, value, command.id, Number(write.priority));
       if (result.error) errors.push({ point: write.point, error: inband(result.error.code, result.error.message) });
       else {
-        command.writes.push({ uuid, layer: write.point.layer, priority, value });
-        writes.push(write);
+        const row = { ts: clock.now(), cancelOnConflict: Boolean(body.cancel_on_conflict || write.cancel_on_conflict) };
+        command.writes.push({ uuid, layer: write.point.layer, priority, value, wire: write.value, ...row });
+        writes.push({ point: write.point, value: write.value, systemPriority: '0', cancelOnConflict: row.cancelOnConflict });
       }
     }
     return { writes, errors };
@@ -275,8 +279,14 @@ function createFake(options = {}) {
         name: command.name,
         startedAt: new Date(command.startedAt).toISOString(),
         expiresAt: new Date(command.expiresAt).toISOString(),
-        // Real NF shows a write it cannot apply in pendingWrites; successful rows are not recorded (mock-only shape).
-        activeWrites: command.writes.map((write) => ({ point: { uuid: write.uuid, layer: write.layer }, priority: write.priority, value: write.value })),
+        // Recorded row: { point, value, systemPriority, ts, cancelOnConflict } (no BACnet priority; a write NF cannot apply sits in pendingWrites).
+        activeWrites: command.writes.map((write) => ({
+          point: { uuid: write.uuid, layer: write.layer },
+          value: write.wire,
+          systemPriority: '0',
+          ts: new Date(write.ts).toISOString(),
+          cancelOnConflict: write.cancelOnConflict,
+        })),
         pendingWrites: [],
       })),
       totalCount: String(active.length),
@@ -415,10 +425,16 @@ function createFake(options = {}) {
     };
   }
 
+  /** @param {number | boolean | string} value */
+  function wireValue(value) {
+    return typeof value === 'boolean' ? { enumerated: value ? 1 : 0 } : { real: Number(value) };
+  }
+
   /**
    * GET /api/v1/bacnet/readproperty. Real NF answers by device address (mac + port_id); `device_id` alone was an empty 500.
-   * BACnet failures are in-band 200 {error:{errorClass,errorCode}}. The priority array is 16 values in `value.array`
-   * (the value encoding of a slot is mock-only: a populated slot is {real|boolean|enumerated}, an empty one {null}).
+   * BACnet failures are in-band 200 {error:{errorClass,errorCode}}. The priority array is 16 values in `value.array`,
+   * recorded from a real NF: an empty slot is {null:true,array:[]}, a held analog slot {real,array:[]}; a binary
+   * object reports {enumerated:0|1,array:[]} for its present value (a held binary slot is the same, not recorded).
    * @param {URL} url
    * @param {import('node:http').ServerResponse} res
    */
@@ -443,13 +459,15 @@ function createFake(options = {}) {
     if (object.offline) return send(res, 200, { error: { errorClass: 'ERROR_CLASS_COMMUNICATION', errorCode: 'ERROR_CODE_TIMEOUT' } });
     if (property === 'PROP_PRESENT_VALUE') {
       const value = object.presentValue();
-      const wire = typeof value === 'boolean' ? { boolean: value } : { real: Number(value) };
-      return send(res, 200, { property: propertyEcho, value: { ...wire, array: [] } });
+      return send(res, 200, { property: propertyEcho, value: { ...wireValue(value), array: [] } });
+    }
+    if (property === 'PROP_RELINQUISH_DEFAULT' && object.commandable) {
+      return send(res, 200, { property: propertyEcho, value: { ...wireValue(object.relinquish === null ? 0 : object.relinquish), array: [] } });
     }
     if (property === 'PROP_PRIORITY_ARRAY' && object.commandable) {
       const array = object.priorityArray().map((slot) => {
-        if (slot === null || slot === undefined) return { null: 0 };
-        return typeof slot === 'boolean' ? { boolean: slot } : { real: slot };
+        if (slot === null || slot === undefined) return { null: true, array: [] };
+        return { ...wireValue(slot), array: [] };
       });
       return send(res, 200, { property: propertyEcho, value: { array } });
     }

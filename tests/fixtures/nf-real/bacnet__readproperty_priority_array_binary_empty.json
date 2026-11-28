@@ -1,0 +1,90 @@
+{
+ "id": "bacnet__readproperty_priority_array_binary_empty",
+ "request": {
+  "method": "GET",
+  "path": "/api/v1/bacnet/readproperty?object_id.object_type=OBJECT_BINARY_OUTPUT&object_id.instance=8201&property_id=PROP_PRIORITY_ARRAY&array_index=4294967295&device_address.mac=<device-mac>&device_address.port_id=1&device_address.net=2&device_address.adr=<device-adr>"
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "property": {
+    "objectId": {
+     "objectType": "OBJECT_BINARY_OUTPUT",
+     "instance": 8201
+    },
+    "propertyId": "PROP_PRIORITY_ARRAY",
+    "arrayIndex": 4294967295
+   },
+   "value": {
+    "array": [
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     },
+     {
+      "null": true,
+      "array": []
+     }
+    ]
+   }
+  }
+ },
+ "note": "Binary output, nothing held. A held binary slot was not recorded (it is expected to read enumerated 0/1)."
+}

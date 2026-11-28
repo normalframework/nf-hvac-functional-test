@@ -1,0 +1,26 @@
+{
+ "id": "bacnet__readproperty_present_value_binary",
+ "request": {
+  "method": "GET",
+  "path": "/api/v1/bacnet/readproperty?object_id.object_type=OBJECT_BINARY_OUTPUT&object_id.instance=8201&property_id=PROP_PRESENT_VALUE&array_index=4294967295&device_address.mac=<device-mac>&device_address.port_id=1&device_address.net=2&device_address.adr=<device-adr>"
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "property": {
+    "objectId": {
+     "objectType": "OBJECT_BINARY_OUTPUT",
+     "instance": 8201
+    },
+    "propertyId": "PROP_PRESENT_VALUE",
+    "arrayIndex": 4294967295
+   },
+   "value": {
+    "enumerated": 0,
+    "array": []
+   }
+  }
+ },
+ "note": "Binary present value is enumerated, not boolean."
+}

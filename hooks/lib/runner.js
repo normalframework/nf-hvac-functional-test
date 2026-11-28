@@ -9,7 +9,7 @@ const { Sampler } = require('./sampler');
 const { createManifest, openStep, finishManifest, writeManifest } = require('./manifest');
 const { allocateRunSeq } = require('./run_seq');
 const { releaseEntries, recover } = require('./writers/release');
-const { parsePriorityArray } = require('./writers/verify');
+const { parsePriorityArray, slotMatches } = require('./writers/verify');
 const { guardWrite } = require('./writers/guard');
 const { createWriter, createReleaseWriters } = require('./writers');
 const { executeVav, orderRelease } = require('./vav/execute');
@@ -635,7 +635,7 @@ class Runner {
         if (slots[index] !== null && slots[index] !== undefined) return 'conflict';
       }
       const ours = slots[entry.priority - 1];
-      if (ours !== entry.value) return 'conflict';
+      if (!slotMatches(ours, entry.value)) return 'conflict';
     }
     return 'ok';
   }

@@ -35,7 +35,7 @@ AHU-1 includes a heating coil and is served by the hot-water plant. AHU-2 has no
 
 Creates are batched (12 per tick). After that, present-value patches and Haystack upserts run in smaller batches (40 and 20) so a 1 GB box stays responsive. The hook runs every 60 seconds with a 25 second invoke timeout.
 
-Haystack upserts include a `SITE` record (`nfft-sim-site`), `EQUIPMENT` records with `airRef` / `feeds` / `isFedBy`, and point tags with `siteRef` and `equipRef`. A point uuid is included only when `/api/v1/bacnet/local` already returned one for that exact `nfft-sim.*` name (the id NF assigned at create). Foreign names, including Open-FDD weather AVs, are never tagged with a uuid.
+Haystack upserts include a `SITE` record (`nfft-sim-site`), `EQUIPMENT` records with `airRef` / `feeds` / `isFedBy`, and point tags with `siteRef` and `equipRef`. Every upsert row includes a uuid: NF 3.10 requires one on `POST /api/v1/point/points`. Points use the uuid NF assigned at create when `/api/v1/bacnet/local` has a valid one for that exact `nfft-sim.*` name; site, equipment, and any still-unlisted point use a stable UUID v5 of the id. Foreign names, including Open-FDD weather AVs, are never tagged with a uuid.
 
 
 ## Enabling on a bench station

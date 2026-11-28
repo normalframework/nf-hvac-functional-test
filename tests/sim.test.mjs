@@ -231,7 +231,11 @@ test('run creates new local objects without uuids and skips a missing BACnet ser
   assert.ok(second.patched > 0);
   assert.equal(state.posts.filter((b) => b.objectId).length, 0);
   assert.ok(state.upserts.length >= 1);
-  assert.ok(state.upserts[0].points.every((pt) => !pt.uuid));
+  assert.ok(state.upserts.length >= 1);
+  const tagged = state.upserts[0].points;
+  assert.ok(tagged.every((pt) => Sim.isUuid(pt.uuid)));
+  assert.ok(tagged.filter((pt) => pt.layer !== 'model').every((pt) => String(pt.name).startsWith('nfft-sim.')));
+
 });
 
 test('tagPayload sets SITE/EQUIPMENT pointTypes, feed relationships, and uuids only for nfft-sim names', () => {
@@ -241,20 +245,22 @@ test('tagPayload sets SITE/EQUIPMENT pointTypes, feed relationships, and uuids o
   const first = cat.points[0];
   const listing = listingWith([
     { instance: 1, name: 'WEB OA-T', uuid: 'weather-uuid' },
-    { instance: 8000, name: first.name, uuid: 'sim-uuid-1' },
+    { instance: 8000, name: first.name, uuid: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' },
   ]);
   const planned = Sim.planSync(listing, cat);
   const tags = Sim.tagPayload(cat, listing, planned, []);
   const site = tags.find((t) => t.pointType === 'SITE');
   assert.equal(site.attrs.id, 'nfft-sim-site');
   assert.equal(site.layer, 'model');
-  assert.equal(Object.prototype.hasOwnProperty.call(site, 'uuid'), false);
+  assert.equal(site.uuid, Sim.stableUuid('site:nfft-sim-site'));
+  assert.equal(site.uuid, 'baee4790-9a46-5235-94e5-a590e91ae2b7');
   const equip = tags.find((t) => t.pointType === 'EQUIPMENT' && t.attrs.id === 'nfft-sim-vav-01');
   assert.equal(equip.attrs.airRef, 'nfft-sim-ahu-1');
   const pt = tags.find((t) => t.name === first.name);
-  assert.equal(pt.uuid, 'sim-uuid-1');
+  assert.equal(pt.uuid, 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
+  assert.ok(tags.every((t) => Sim.isUuid(t.uuid)));
   assert.ok(tags.every((t) => t.uuid !== 'weather-uuid'));
-  assert.ok(tags.every((t) => !t.uuid || String(t.name).startsWith('nfft-sim.')));
+  assert.ok(tags.filter((t) => t.layer !== 'model').every((t) => String(t.name).startsWith('nfft-sim.')));
 });
 
 function listingWith(objects) {
@@ -274,4 +280,11 @@ test('sliceRotate pages through a list across minutes', () => {
   const b = Sim.sliceRotate(all, 2, 60000);
   assert.equal(a.length, 2);
   assert.notDeepEqual(a, b);
+});
+
+test('stableUuid is deterministic RFC 4122 v5 and rejects invalid owned uuids', () => {
+  assert.equal(Sim.isUuid('sim-uuid-1'), false);
+  assert.equal(Sim.isUuid('baee4790-9a46-5235-94e5-a590e91ae2b7'), true);
+  assert.equal(Sim.stableUuid('site:nfft-sim-site'), 'baee4790-9a46-5235-94e5-a590e91ae2b7');
+  assert.equal(Sim.ownedUuid(listingWith([{ instance: 8000, name: 'nfft-sim.ahu-1.oa-dmp-cmd', uuid: 'not-a-uuid' }]), 'nfft-sim.ahu-1.oa-dmp-cmd'), undefined);
 });

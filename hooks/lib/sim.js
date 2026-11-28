@@ -8,6 +8,7 @@
  * instance whose name this hook did not choose, and never writes to real devices.
  */
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -22,6 +23,32 @@ const TAG_POINT_BATCH = 20;
 const STARVE_ID = 'vav-03';
 const STARVE_FACTOR = 0.45;
 const DESIGN_PA = 250;
+// Stable namespace so model-only SITE/EQUIPMENT records get the same uuid every tick.
+const TAG_NAMESPACE = 'a7c4e6f0-1b25-5d9a-9c33-6e6666747369';
+
+/**
+ * @param {any} value
+ * @returns {boolean}
+ */
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+/**
+ * RFC 4122 UUID v5 of `name` in TAG_NAMESPACE. NF 3.10 requires a uuid on
+ * POST /api/v1/point/points even for new model records.
+ * @param {string} name
+ * @returns {string}
+ */
+function stableUuid(name) {
+  const ns = Buffer.from(TAG_NAMESPACE.replace(/-/g, ''), 'hex');
+  const hash = crypto.createHash('sha1').update(ns).update(String(name), 'utf8').digest();
+  hash[6] = (hash[6] & 0x0f) | 0x50;
+  hash[8] = (hash[8] & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 
 /** @type {any} */
 let cachedRecords = null;
@@ -255,7 +282,7 @@ function sliceRotate(arr, limit, now) {
 function ownedUuid(listing, name) {
   if (!name || !String(name).startsWith(NAME_PREFIX)) return undefined;
   const rec = indexLocal(listing).byName.get(name);
-  if (!rec || !rec.uuid || !String(rec.name || '').startsWith(NAME_PREFIX)) return undefined;
+  if (!rec || !String(rec.name || '').startsWith(NAME_PREFIX) || !isUuid(rec.uuid)) return undefined;
   return rec.uuid;
 }
 
@@ -456,7 +483,8 @@ async function run(sdk, ctx) {
     const tagLimit = (ctx && ctx.tagLimit) || TAG_POINT_BATCH;
     const batch = modelTags.concat(sliceRotate(pointTags, tagLimit, now));
     for (const row of batch) {
-      if (row.uuid && !String(row.name || '').startsWith(NAME_PREFIX)) {
+      const model = row.pointType === 'SITE' || row.pointType === 'EQUIPMENT';
+      if (!model && row.uuid && !String(row.name || '').startsWith(NAME_PREFIX)) {
         throw new Error('refusing to upsert a uuid for a name this hook did not create');
       }
     }
@@ -491,6 +519,7 @@ function tagPayload(cat, listing, planned, createdThisTick) {
   /** @type {any[]} */
   const out = [];
   out.push({
+    uuid: stableUuid(`site:${cat.site.id}`),
     name: cat.site.dis,
     layer: 'model',
     pointType: 'SITE',
@@ -503,6 +532,7 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     if (e.feeds) attrs.feeds = e.feeds;
     if (e.isFedBy) attrs.isFedBy = e.isFedBy;
     out.push({
+      uuid: stableUuid(`equip:${e.id}`),
       name: e.dis,
       layer: 'model',
       pointType: 'EQUIPMENT',
@@ -523,9 +553,7 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     if (p.kind) attrs.kind = p.kind;
     if (p.unit) attrs.unit = p.unit;
     /** @type {{ name: string, attrs: any, uuid?: string }} */
-    const row = { name: p.name, attrs };
-    const uuid = ownedUuid(listing, p.name);
-    if (uuid) row.uuid = uuid;
+    const row = { name: p.name, attrs, uuid: ownedUuid(listing, p.name) || stableUuid(`point:${p.name}`) };
     out.push(row);
   }
   return out;
@@ -536,7 +564,10 @@ module.exports = {
   NAME_PREFIX,
   ID_PREFIX,
   SITE_ID,
+  TAG_NAMESPACE,
   INSTANCE_BASE,
+  isUuid,
+  stableUuid,
   PATCH_BATCH,
   TAG_POINT_BATCH,
   sliceRotate,

@@ -78,7 +78,19 @@
       if (r.op) {
         series.push({
           name: 'Operating point', type: 'scatter', symbolSize: 14, data: [[ax.fx(r.op.q), ax.fy(r.op.h)]], itemStyle: { color: colorOp },
-          label: { show: true, position: 'right', color: colorOp, formatter: r.curve.normalized ? 'operating point' : `${fmt(r.op.q * 1000)} L/s, ${fan ? `${fmt(r.op.h, 0)} Pa` : `${fmt(r.op.h / 1000)} kPa`}` },
+          // Sit above the point with a theme-colored pill so the text never sits on the curve lines.
+          label: {
+            show: true,
+            position: 'top',
+            distance: 10,
+            color: colorOp,
+            backgroundColor: cssColor('--panel', '#fff'),
+            borderColor: cssColor('--line', '#e2e8f0'),
+            borderWidth: 1,
+            borderRadius: 3,
+            padding: [3, 6],
+            formatter: r.curve.normalized ? 'operating point' : `${fmt(r.op.q * 1000)} L/s, ${fan ? `${fmt(r.op.h, 0)} Pa` : `${fmt(r.op.h / 1000)} kPa`}`,
+          },
         });
         if (r.cmp && r.cmp.rows.length > 1) {
           const thr = r.cmp.rows.find((/** @type {any} */ x) => x.id === 'throttled');
@@ -90,7 +102,7 @@
       return {
         animation: false,
         title: r.illustrative ? { text: 'ILLUSTRATIVE', left: 'center', top: 4, textStyle: { color: colorOp, fontSize: 12, fontWeight: 600 } } : undefined,
-        grid: { left: 56, right: 18, top: r.illustrative ? 30 : 14, bottom: 100 },
+        grid: { left: 56, right: 18, top: r.illustrative ? 40 : 28, bottom: 100 },
         legend: { bottom: 0, type: 'plain', itemWidth: 16, itemHeight: 8, textStyle: { fontSize: 10 } },
         tooltip: { trigger: 'item' },
         xAxis: { type: 'value', name: ax.x, nameLocation: 'middle', nameGap: 26, min: 0, max: ax.fx(qMax), axisLabel: { formatter: (/** @type {number} */ v) => fmt(v, 0) } },
@@ -101,8 +113,8 @@
 
     const SG = g.NfftSchematic;
     /** Text at a slot: truncated to max characters, full text as a tooltip (shared with the Functional test graphic). */
-    const T = (/** @type {number} */ x, /** @type {number} */ y, /** @type {string} */ text, /** @type {string} */ cls, /** @type {number} */ max = 22) => SG.text(x, y, text, {
-      max, cls: `sg-t${/op-muted/.test(cls || '') ? ' sg-muted' : ''}${/op-t-sm/.test(cls || '') ? ' sg-sm' : ''}`,
+    const T = (/** @type {number} */ x, /** @type {number} */ y, /** @type {string} */ text, /** @type {string} */ cls, /** @type {number} */ max = 22, /** @type {string|undefined} */ anchor = undefined) => SG.text(x, y, text, {
+      max, cls: `sg-t${/op-muted/.test(cls || '') ? ' sg-muted' : ''}${/op-t-sm/.test(cls || '') ? ' sg-sm' : ''}`, anchor,
     });
     const pctText = (/** @type {number|null|undefined} */ v) => (v === null || v === undefined ? 'n/a' : `${fmt(v, 0)}%`);
     const num = (/** @type {any} */ entry, /** @type {string} */ key) => {
@@ -165,16 +177,16 @@
         parts.push(SG.label(x, 154, b.label, 10, { anchor: 'middle', cls: 'sg-t sg-sm sg-name', step: 11 }));
         parts.push(T(x, 184, b.sub, 'op-t op-muted op-t-sm', 12));
       });
-      // DP sensor and setpoint across the loop.
+      // DP sensor on the riser; readings sit to the left so they never cover the circle or the wire.
       const dpq = entry.q.dp;
       const dpTxt = r.dp === null ? 'DP n/a' : `DP ${fmt(r.dp / 1000)} kPa`;
       const spTxt = r.dpSp === null ? 'sp n/a' : `sp ${fmt(r.dpSp / 1000)} kPa`;
       parts.push(d.svg('line', { x1: rightX, y1: top, x2: rightX, y2: bottom, class: 'op-wire' }));
       parts.push(d.svg('circle', { cx: rightX, cy: 200, r: 11, class: 'op-node op-sensor' }));
       parts.push(T(rightX, 204, 'DP', 'op-t op-t-sm'));
-      parts.push(T(rightX, 226, dpTxt, r.dp === null ? 'op-t op-muted' : 'op-t'));
-      parts.push(T(rightX, 240, spTxt, r.dpSp === null ? 'op-t op-muted' : 'op-t'));
-      if (dpq && dpq.found && dpq.remote) parts.push(T(rightX, 180, `at ${dpq.equipId}`, 'op-t op-muted op-t-sm', 13));
+      parts.push(T(rightX - 20, 198, dpTxt, r.dp === null ? 'op-t op-muted' : 'op-t', 16, 'end'));
+      parts.push(T(rightX - 20, 212, spTxt, r.dpSp === null ? 'op-t op-muted' : 'op-t', 16, 'end'));
+      if (dpq && dpq.found && dpq.remote) parts.push(T(rightX - 20, 184, `at ${dpq.equipId}`, 'op-t op-muted op-t-sm', 13, 'end'));
       return d.svg('svg', { viewBox: '0 0 560 290', class: 'op-svg', role: 'img', 'aria-label': `${entry.label} loop schematic` }, parts);
     }
 

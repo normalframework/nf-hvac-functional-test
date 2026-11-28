@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { test } = require('node:test');
@@ -14,7 +15,7 @@ const { VirtualClock } = require('./fixtures/fake/clock');
 const { NfClient, NfError, errorText } = require('../hooks/lib/nf/client');
 const { shapeProblems } = require('./fixtures/nf-shape');
 
-const FIX = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures', 'nf-real');
+const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'nf-real');
 const fx = (id) => JSON.parse(fs.readFileSync(path.join(FIX, `${id}.json`), 'utf8'));
 const LAYER = 'hpl:bacnet:1';
 const ZERO = '00000000-0000-0000-0000-000000000000';

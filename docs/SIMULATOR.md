@@ -54,3 +54,63 @@ The page is at `/api/v1/apps/static/nf-hvac-functional-test/` on the station (Gr
 ## Related issue
 
 Tracked as part of the functional test graphic work in the repository issues (demo fixture and optional bench-station install plan).
+
+## ACME building layout (default)
+
+`simulatorLayout: office` (the default) builds the **ACME building**: a generic, one-to-one mirror of a real
+two-floor office site's NF model. ACME is a public placeholder name; no real names, addresses or hosts are used.
+
+| Equipment | Count | Notes |
+|---|---|---|
+| Packaged rooftop VAV unit `rtu-1` | 1 | DX cooling (capacity %), staged gas heat, OA damper, VFD supply fan; serves all 30 boxes |
+| Hot-water plant `hw-plant-1` | 1 | one boiler, one VFD pump |
+| Single-duct VAV with hot-water reheat | 30 | 17 on floor 1, 13 on floor 2; two controller families tag reheat differently, as on the real site |
+
+The layout is `hooks/lib/sim_layout_office.json`; points are built by `hooks/lib/sim_office.js` (302 objects,
+names `nfft-sim.<equip>.<point>`). Points the functional tests need but the real site does not have (fan status and
+speed feedback, damper feedback, modulating cooling/heating valve commands, writable airflow setpoints on vendor-a
+boxes, box maximum airflow, purge points on five vendor-b boxes) carry `nfftSimOnly: "true"` and are marked "sim"
+in the page. Vendor-b boxes keep the real site's read-only airflow setpoint, so one max-cooling run picks a different
+strategy per box: `airflow_setpoint` (22 boxes), `flush_point` / toggle_boolean (5) and unsupported (3).
+
+**Physics** (one step per sim hook run, every minute): fan law fan (`p = s² p0 − a Q²`, 750 Pa at 10 m³/s and full
+speed) with a built-in duct static loop that plays the BAS; box capacity from duct static; OA/RA mixing with a 0.2 K
+mixed-air sensor offset; fan heat `ΔT = Δp / (η ρ cp)`; DX and gas heat on the supply air; zone drift; plant ΔP,
+boiler firing and HW return. This is an illustrative teaching plant, labelled as such in the page and in evidence
+reports, not an EnergyPlus run. `simulatorFaults: starved_box` turns on the far-box starvation deficiency.
+
+**Open-FDD roles.** Every point also gets `roleRef`, the Open-FDD role id (catalog pinned in
+`vendor/roles/openfdd-roles.json`, Open-FDD 5.0.22) matched from the same Haystack tags Open-FDD binds on
+(`hooks/lib/openfdd_roles.js`). 267 of 302 points bind to a 223P-grounded role, 4 to Open-FDD extension roles
+(223P has no class yet). Gaps: supply fan speed feedback, cooling capacity, heating stage command, HW pump speed
+command and boiler firing rate have no Open-FDD role; vendor-a reheat (`heat,cmd`) only matches the catch-all; the HW
+differential pressure would bind as `hot_water_reset_request_count` (no hot-water pressure role in the catalog yet).
+
+## Test target: Simulation or Live
+
+`testTarget` selects where the same hooks and plan run:
+
+- **simulation** (default): the config the sim hook writes for its own objects (`local/sim-site-config.json`,
+  `hooks/lib/sim_site_config.js`); the `siteConfig` option is ignored. Roles come from nfft's own Haystack map.
+- **live**: only the reviewed `siteConfig` option. A run with live writes is refused (`sim_signoff_required`)
+  unless a passed simulation run with the **same plan fingerprint** was signed off (`admin` action `signoff`). The
+  fingerprint (`static/evidence.js` `planFingerprint`) covers plan steps, limits, interlocks, write policy, VAV test
+  settings and per-equipment role coverage, not uuids or ids. Dry-run on live needs no sign-off. Every interlock,
+  the priority check and the dry-run default are unchanged.
+
+## Hook validation and evidence
+
+`node scripts/sim-validate.mjs [--tests ahu.recirc,vav.max_cool] [--hold-recirc 20] [--hold-max-cool 5] [--signoff]`
+runs the existing sequences through the app's own admin and tick hooks on a **local** NF only (it refuses any host
+other than localhost), samples every minute and writes `evidence/evidence-<time>.json`, `.html` (standalone, inline
+SVG trends, per-box strategy table, fan operating point on the fan curve) and one CSV of minute trends per sequence.
+Checks: `ahu.recirc` OA damper closed, MAT = RAT within 1 K, DAT − MAT within 0–2 K fan heat; `vav.max_cool` duct
+static within ±10% (min 25 Pa) of setpoint, fan speed below 95%, summed box airflow 85–110% of design, each tested box
+at 90% of its maximum; plus hook checks (completed, wrote, released, no attention) and the Open-FDD app's hook runs
+and FDD rows on the same model.
+
+**Known limit (NF 3.x):** NF local BACnet objects live on the `hpl:bacnet:local` layer, which has no HPL driver, so
+`/api/v2/command` cannot command them (`layer has no hpl driver`). The `nf_command` writer therefore cannot drive the
+simulator directly yet; the run fails safe in precheck or on the first read (`comm_loss`) with no write. Next step:
+expose the sim objects through a BACnet device NF scans (a virtual device or a small BACnet sim device on the local
+Docker network), so they appear as `hpl:bacnet:1` points and the unchanged writer reaches them.

@@ -196,7 +196,7 @@ test('run is a no-op when the simulator is not armed', async () => {
 });
 
 test('run creates new local objects without uuids and skips a missing BACnet server', async () => {
-  const armed = { enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE };
+  const armed = { enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE, simulatorLayout: "demo" };
   const missing = {};
   const none = mockHttp(missing);
   missing.configOk = false;
@@ -318,7 +318,7 @@ test('tagBatchSize catches up while model records are missing and settles once t
 });
 
 test('run tags catch-up batches while the model layer is incomplete, then the steady batch', async () => {
-  const armed = { enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE };
+  const armed = { enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE, simulatorLayout: "demo" };
   const cat = Sim.catalog();
   const expected = 1 + cat.equipment.length + cat.points.length;
   const state = { modelCount: 17 };

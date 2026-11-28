@@ -77,6 +77,9 @@
       },
     });
     const opoint = g.NfftOperatingPointView.mount({ api, demo, notify });
+    const nfSchedule = g.NfftNfScheduleView.mount({ api, notify, host: $('nfSchedule') });
+    let nfScheduleAt = 0;
+    const overview = g.NfftOverviewView.mount({ api, demo, notify, host: $('overviewDash'), runInfo: () => runInfo() });
     $('opointRefresh').addEventListener('click', () => opoint.refresh());
     schedule = g.NfftScheduleView.mount({
       api,
@@ -167,7 +170,29 @@
         : d.el('p', { class: 'muted', text: statusOk ? 'No ftest commands are active. Nothing is overridden.' : 'Unknown: the command list could not be read.' }));
     }
 
+    /** What the Overview dashboard shows about the run: state, progress, equipment under test, next run, commands. */
+    function runInfo() {
+      const view = g.NfftStateView.view(statusOk ? status : { state: 'IDLE' }, {
+        now: api.now(), nextRunAt: nextRunAt(), triggerMode: triggerView && triggerView.trigger ? triggerView.trigger.mode : 'disabled',
+      });
+      const steps = (preview && preview.steps) || [];
+      const off = !triggerView || !triggerView.trigger || triggerView.trigger.mode === 'disabled';
+      const next = off ? null : upcoming().find((/** @type {any} */ r) => r.runs !== false);
+      const on = active();
+      const step = on && status.step_index >= 0 ? status.step_index + 1 : 0;
+      return {
+        label: statusOk ? view.label : 'STATUS UNKNOWN',
+        sub: statusOk ? (status.dry_run !== false && on ? 'dry run, nothing written' : (status.run_id || view.detail || 'no run')) : 'hooks not reachable',
+        active: on, step, steps: steps.length, fraction: steps.length ? Math.min(1, step / steps.length) : 0, detail: statusOk ? view.detail : '',
+        equipment: on && touch ? touch.devices.map((/** @type {any} */ x) => `nfft-sim-${String(x.equipment_id).replace(/^nfft-sim-/, '')}`).concat(touch.devices.map((/** @type {any} */ x) => x.equipment_id)) : [],
+        commands: commands.length,
+        next: next ? next.local : '', nextSub: next ? next.utc : '',
+      };
+    }
+
+    let overviewAt = 0;
     function renderOverview() {
+      if (Date.now() - overviewAt > 5000) { overviewAt = Date.now(); overview.render(); }
       const view = g.NfftStateView.view(statusOk ? status : { state: 'IDLE' }, {
         now: api.now(),
         nextRunAt: nextRunAt(),
@@ -252,11 +277,16 @@
       if (tab === 'overview') renderOverview();
       else if (tab === 'equipment') renderEquipment();
       else if (tab === 'history') renderHistory();
-      else if (tab === 'schedule') schedule.refresh();
+      else if (tab === 'schedule') {
+        schedule.refresh();
+        if (Date.now() - nfScheduleAt > 30000) { nfScheduleAt = Date.now(); nfSchedule.load(); }
+      }
       if (tab === 'graphic') graphic.activate();
       else graphic.deactivate();
       if (tab === 'opoint') opoint.activate();
       else opoint.deactivate();
+      if (tab === 'overview') overview.activate();
+      else overview.deactivate();
     }
 
     let statusDelay = 8000;

@@ -1,0 +1,38 @@
+{
+  "version": "1",
+  "claim": "SAMPLE_DESIGN_VALUES",
+  "building": { "label": "ACME building", "floor_area_m2": 9290.3 },
+  "sizing_inventory": { "status": "SAMPLE", "zones": [], "systems": [], "components": [] },
+  "design_values": { "ahu_supply_fan_design_m3s": 8.6, "pump_design_m3s": 0.0063, "discharge_air_temp_sp_c": 12.8 },
+  "nfft_equipment_map": { "AHU_Roof_1": "rtu-1", "HW_Pump_1": "hw-plant-1" },
+  "curves": {
+    "fans": [
+      {
+        "rdf_equipment": "https://example.org/office#AHU_Roof_1",
+        "name": "SUPPLY FAN 1",
+        "design": { "design_flow_m3s": 8.6, "design_pressure_pa": 750, "design_power_w": 11000 },
+        "flow_vs_pressure": [
+          { "flow_m3s": 0, "pressure_pa": 975 }, { "flow_m3s": 4.3, "pressure_pa": 919 }, { "flow_m3s": 8.6, "pressure_pa": 750 }, { "flow_m3s": 10.3, "pressure_pa": 600 }
+        ],
+        "flow_vs_power": [
+          { "flow_m3s": 4.3, "power_w": 6200 }, { "flow_m3s": 8.6, "power_w": 11000 }
+        ],
+        "system_curve": [
+          { "flow_m3s": 0, "pressure_pa": 175 }, { "flow_m3s": 8.6, "pressure_pa": 750 }
+        ]
+      }
+    ],
+    "pumps": [
+      {
+        "rdf_equipment": "https://example.org/office#HW_Pump_1",
+        "name": "HW PUMP 1",
+        "design": { "design_flow_m3s": 0.0063, "design_pressure_pa": 120000, "design_power_w": 1500 },
+        "flow_vs_pressure": [
+          { "flow_m3s": 0, "pressure_pa": 150000 }, { "flow_m3s": 0.0032, "pressure_pa": 142000 }, { "flow_m3s": 0.0063, "pressure_pa": 120000 }, { "flow_m3s": 0.0076, "pressure_pa": 100000 }
+        ],
+        "flow_vs_power": [],
+        "system_curve": []
+      }
+    ]
+  }
+}

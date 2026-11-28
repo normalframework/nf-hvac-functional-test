@@ -50,3 +50,14 @@ Nameplate attributes on the pump or AHU equipment record (bare numbers use the d
 ## On the local bench
 
 The simulator (see `SIMULATOR.md`) adds `chw-pump-1` (full tag set and nameplate), `hw-pump-1` (full set and nameplate), AHU-1 (fan speed feedback, static setpoint, airflow, kW, nameplate) and two deliberately incomplete items: `chw-pump-2` (a standby pump with no speed, flow or DP point and no nameplate) and AHU-2 (no static setpoint and no fan power point), so the tab always shows the missing-data text.
+## Design values import (lab_bundle.json)
+
+The Operating point panels read `static/design-values.json` (`static/design-values.js`). It takes the
+`lab_bundle.json` shape from the RDF/EnergyPlus sim lab (`building`, `sizing_inventory.status`, `design_values`,
+`curves.fans[]` / `curves.pumps[]` with `design`, `flow_vs_pressure`, `flow_vs_power`), plus an optional
+`nfft_equipment_map` (bundle equipment name to nfft equipment id). A sample is in `examples/design/lab_bundle.sample.json`.
+
+Each value falls back in order and the panel labels its source: measured point, then nameplate attributes on the
+equipment, then the design file (labelled "from EnergyPlus model" only when `sizing_inventory.status` is a real run;
+`FIXTURE` and `SAMPLE` bundles are labelled as such), then the generic illustrative curve. A rising
+`flow_vs_pressure` sweep is not used as a fixed-speed fan curve.

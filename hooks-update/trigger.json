@@ -8,8 +8,16 @@
     },
     "invokeTimeout": "8s",
     "globalVariables": [
-      { "label": "ftest_trigger_mode" },
-      { "label": "ftest_trigger_next" }
-    ]
+      {
+        "label": "ftest_trigger_mode"
+      },
+      {
+        "label": "ftest_trigger_next"
+      }
+    ],
+    "runtimeConfig": {
+      "memoryLimit": 64,
+      "maxInstances": 1
+    }
   }
 }

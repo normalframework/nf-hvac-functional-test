@@ -3,6 +3,10 @@
     "name": "admin",
     "entryPoint": "hooks/admin.js",
     "mode": "MODE_ON_REQUEST",
-    "invokeTimeout": "8s"
+    "invokeTimeout": "8s",
+    "runtimeConfig": {
+      "memoryLimit": 64,
+      "maxInstances": 1
+    }
   }
 }

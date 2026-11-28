@@ -11,6 +11,10 @@
       {
         "label": "nfft_sim_enabled"
       }
-    ]
+    ],
+    "runtimeConfig": {
+      "memoryLimit": 96,
+      "maxInstances": 1
+    }
   }
 }

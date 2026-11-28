@@ -94,6 +94,46 @@
       "defaultValue": {
         "string": ""
       }
+    },
+    {
+      "name": "simulatorLayout",
+      "description": "Simulator layout: office (default; one rooftop unit, a hot-water plant and 30 VAV boxes with hot-water reheat on two floors) or demo (the small two-AHU fixture).",
+      "optionType": "TYPE_STRING",
+      "choices": [
+        {
+          "string": "office"
+        },
+        {
+          "string": "demo"
+        }
+      ],
+      "defaultValue": {
+        "string": "office"
+      }
+    },
+    {
+      "name": "testTarget",
+      "description": "Where functional tests run: simulation (default; the office simulator's own local objects, config built by the sim hook) or live (the reviewed siteConfig on a real site). Live writes need a passed, signed-off simulation run of the same plan first. Same hooks and plan on both.",
+      "optionType": "TYPE_STRING",
+      "choices": [
+        {
+          "string": "simulation"
+        },
+        {
+          "string": "live"
+        }
+      ],
+      "defaultValue": {
+        "string": "simulation"
+      }
+    },
+    {
+      "name": "simulatorFaults",
+      "description": "Office simulator fault injection, comma separated. starved_box: the far box on floor 2 only reaches 45% of its airflow (a max-cooling deficiency). Empty (default) runs a healthy building.",
+      "optionType": "TYPE_STRING",
+      "defaultValue": {
+        "string": ""
+      }
     }
   ]
 }

@@ -179,10 +179,28 @@ function createFactory(session, sdk) {
  * @param {any} sdk
  */
 function parseSiteConfig(sdk) {
+  const target = require('./signoff').targetOf({ ...((sdk && sdk.config) || {}), ...((sdk && sdk.options) || {}) });
+  // Simulation target: only the config the sim hook built for its own objects. Live target: only the reviewed
+  // siteConfig option. Neither falls back to the other.
+  if (target === 'simulation') return simulatorConfig(sdk);
   const raw = sdk && sdk.options ? sdk.options.siteConfig : '';
   if (raw && typeof raw === 'object') return raw;
-  if (typeof raw !== 'string' || !raw.trim()) return null;
+  if (typeof raw !== 'string' || !raw.trim()) return target === 'live' ? null : simulatorConfig(sdk);
   return JSON.parse(raw);
+}
+
+/**
+ * No siteConfig option: when the office simulator is armed, use the config the sim hook wrote for the objects it
+ * owns (sim_site_config.js). Otherwise null, so a real site never runs without its own reviewed config.
+ * @param {any} sdk
+ */
+function simulatorConfig(sdk) {
+  const options = { ...((sdk && sdk.config) || {}), ...((sdk && sdk.options) || {}) };
+  const sim = require('./sim');
+  if (!sim.isArmed(options)) return null;
+  const layout = String(sim.unwrapOption ? sim.unwrapOption(options.simulatorLayout) || 'office' : options.simulatorLayout || 'office');
+  if (layout.trim() === 'demo') return null;
+  return require('./sim_site_config').load(sdk.stateRoot || defaultStateRoot());
 }
 
 /**
@@ -191,7 +209,7 @@ function parseSiteConfig(sdk) {
  * @param {any} sdk
  */
 function ensureRuntime(session, sdk) {
-  if (sdk && sdk.options) session.options = sdk.options;
+  if (sdk && (sdk.options || sdk.config)) session.options = { ...(sdk.config || {}), ...(sdk.options || {}) };
   if (session.factory) return session;
   if (!session.root) session.root = defaultStateRoot();
   session.factory = createFactory(session, sdk);

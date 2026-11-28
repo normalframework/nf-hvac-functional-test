@@ -14,6 +14,7 @@ let signalsBound = false;
 async function onTick(ctx) {
   const sdk = ctx && ctx.sdk ? ctx.sdk : (ctx || {});
   if (ctx && Array.isArray(ctx.globalVariables)) sdk.globalVariables = ctx.globalVariables;
+  if (ctx && ctx.sdk && ctx.config && !sdk.config) sdk.config = ctx.config;
   ensureRuntime(session, sdk);
   if (!signalsBound) {
     bindRelease(sdk, () => {

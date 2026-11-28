@@ -43,8 +43,12 @@
 <script defer src="graphic-view.js"></script>
 <script defer src="vendor/open-fdd/paging.js"></script>
 <script defer src="oppoint-math.js"></script>
+<script defer src="design-values.js"></script>
 <script defer src="oppoint-model.js"></script>
 <script defer src="oppoint-view.js"></script>
+<script defer src="overview-model.js"></script>
+<script defer src="overview-view.js"></script>
+<script defer src="nf-schedule-view.js"></script>
 <script defer src="app.js"></script>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="app.css">
@@ -75,35 +79,41 @@
   <div id="testBanner" class="test-banner" hidden></div>
 
   <section class="tab on" id="tab-overview">
-    <div class="cards" id="overviewCards"></div>
-    <div class="panel">
-      <h2>Run state machine <span class="hint" id="machineHint"></span></h2>
-      <div id="machineSvg" class="machine"></div>
-      <div class="machine-foot">
-        <div>
-          <div class="state-label" id="stateLabel">IDLE</div>
-          <div class="muted" id="stateDetail"></div>
+    <div id="overviewDash"></div>
+    <details class="panel run-details" id="runDetails">
+      <summary><h2>Run details <span class="hint">state machine, step timeline and the NF commands a run holds</span></h2></summary>
+      <div class="cards mt6" id="overviewCards"></div>
+      <div class="panel inner">
+        <h2>Run state machine <span class="hint" id="machineHint"></span></h2>
+        <div id="machineSvg" class="machine"></div>
+        <div class="machine-foot">
+          <div>
+            <div class="state-label" id="stateLabel">IDLE</div>
+            <div class="muted" id="stateDetail"></div>
+          </div>
+          <div class="rings" id="rings"></div>
         </div>
-        <div class="rings" id="rings"></div>
+        <div class="attention" id="attentionBox" hidden>
+          <b>Needs attention.</b> A release was not verified. Check the equipment, then retry the release or acknowledge.
+          <div class="actions"><button class="btn" type="button" id="retryBtn">Retry release</button><button class="btn" type="button" id="ackBtn">Acknowledge</button></div>
+        </div>
       </div>
-      <div class="attention" id="attentionBox" hidden>
-        <b>Needs attention.</b> A release was not verified. Check the equipment, then retry the release or acknowledge.
-        <div class="actions"><button class="btn" type="button" id="retryBtn">Retry release</button><button class="btn" type="button" id="ackBtn">Acknowledge</button></div>
+      <div class="grid57">
+        <div class="panel inner">
+          <h2>Step timeline <span class="hint">plan from the site model; the marker is now</span></h2>
+          <div id="stepChart" class="chart short"></div>
+        </div>
+        <div class="panel inner">
+          <h2>Active NF commands <span class="hint">every override is a named command with an expiry; it reverts on its own</span></h2>
+          <div id="commands"></div>
+        </div>
       </div>
-    </div>
-    <div class="grid57">
-      <div class="panel">
-        <h2>Step timeline <span class="hint">plan from the site model; the marker is now</span></h2>
-        <div id="stepChart" class="chart short"></div>
-      </div>
-      <div class="panel">
-        <h2>Active NF commands <span class="hint">every override is a named command with an expiry; it reverts on its own</span></h2>
-        <div id="commands"></div>
-      </div>
-    </div>
+    </details>
   </section>
 
   <section class="tab" id="tab-schedule">
+    <div class="panel nfs-panel" id="nfSchedule"></div>
+    <div class="sched-divider"><b>Functional test windows</b><span class="hint">This app's own schedule: when a functional test may run. It is not the building occupancy schedule above; it reads that schedule to keep tests out of occupied hours and holidays.</span></div>
     <div class="grid57">
       <div class="panel">
         <h2>When the test runs <span class="hint">NF scheduled hook · recurrence in the site timezone</span></h2>
@@ -117,7 +127,7 @@
       </div>
     </div>
     <div class="panel">
-      <h2>Weekly test windows <span class="hint">drag to paint a window, drag edges to resize, drag to move, double-click to delete. Hatched = building occupied (NF schedule). Diamonds = scheduled runs.</span>
+      <h2>Weekly test windows <span class="hint">drag to paint a window, drag edges to resize, drag to move, double-click to delete. Hatched = building occupied (from the NF schedule above). Diamonds = scheduled runs.</span>
         <span class="seg flush week-nav"><button type="button" id="weekPrev" aria-label="Previous week">◀</button><button type="button" id="weekNow">This week</button><button type="button" id="weekNext" aria-label="Next week">▶</button></span>
       </h2>
       <div id="weekGrid" class="week"></div>

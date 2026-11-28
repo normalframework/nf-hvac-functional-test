@@ -37,6 +37,21 @@
     let timer = null;
     let on = false;
     let busy = false;
+    /** @type {any} */
+    let bundle = null;
+    let bundleTried = false;
+    /** Imported design values (design-values.json in the app's static folder, lab_bundle.json shape). */
+    async function loadBundle() {
+      if (bundleTried) return;
+      bundleTried = true;
+      const DV = g.NfftDesignValues;
+      if (!DV) return;
+      try {
+        const reply = await fetch('design-values.json', { cache: 'no-cache' });
+        if (reply.ok) bundle = DV.parseBundle(await reply.json());
+      } catch { bundle = null; }
+    }
+    const design = () => (g.NfftDesignValues && resolved ? { lib: g.NfftDesignValues, bundle, fans: resolved.fans.length, pumps: resolved.pumps.length } : undefined);
 
     const cssColor = (/** @type {string} */ v, /** @type {string} */ fallback) => d.cssVar(v) || fallback;
 
@@ -288,19 +303,19 @@
     }
 
     function panel(/** @type {any} */ entry) {
-      const r = OM.compute(entry, values);
+      const r = OM.compute(entry, values, design());
       const missing = OM.missingText(entry);
       const fan = entry.kind === 'fan';
       const chartHost = d.el('div', { class: 'chart op-chart', role: 'img', 'aria-label': `${entry.label} ${fan ? 'fan' : 'pump'} curve and system curve` });
       const np = r.nameplate;
-      const sourceNote = r.curveSource === 'coefficients' ? 'curve from the equipment curve coefficients'
+      const sourceNote = g.NfftDesignValues && r.designSources ? `Design data: ${g.NfftDesignValues.sourceLine({ sources: r.designSources })}` : r.curveSource === 'coefficients' ? 'curve from the equipment curve coefficients'
         : r.curveSource === 'nameplate' ? `curve shape from the nameplate (design ${fmt(np.designFlow * 1000)} L/s at ${fan ? `${fmt(np.designHead, 0)} Pa` : `${fmt(np.designHead / 1000)} kPa`}), generic shape`
           : `no nameplate: add designFlow and ${fan ? 'designPressure' : 'designHead'} on ${entry.id} for real curves`;
       const card = d.el('section', { class: 'panel op-card', dataset: { opointId: entry.id } },
         d.el('h2', {},
           entry.label,
           d.el('span', { class: 'pill', text: fan ? 'supply fan' : `${entry.mediumLabel} pump` }),
-          r.illustrative ? d.el('span', { class: 'pill op-warn', text: 'illustrative' }) : d.el('span', { class: 'pill ok', text: r.curveSource }),
+          r.illustrative ? d.el('span', { class: 'pill op-warn', text: 'illustrative' }) : d.el('span', { class: 'pill ok', text: /from EnergyPlus/.test(sourceNote) ? 'EnergyPlus design' : /bundle|design file/.test(sourceNote) && !/nameplate/.test(sourceNote) ? 'design file' : r.curveSource }),
           d.el('span', { class: 'hint', text: sourceNote })),
         missing ? d.el('p', { class: 'op-missing', text: missing }) : null,
         d.el('div', { class: 'op-grid' }, chartHost, d.el('div', { class: 'op-schematic' }, fan ? fanSchematic(entry, r) : pumpSchematic(entry, r))),
@@ -332,6 +347,7 @@
         d.fill(statusEl,
           d.el('span', { class: 'pill', text: `${resolved.pumps.length} pump${resolved.pumps.length === 1 ? '' : 's'} · ${resolved.fans.length} air handler${resolved.fans.length === 1 ? '' : 's'}` }),
           d.el('span', { class: miss ? 'pill op-warn' : 'pill ok', text: miss ? `${miss} with missing data` : 'all points found' }),
+          d.el('span', { class: bundle ? 'pill ok' : 'pill', text: bundle ? `design values ${bundle.label}` : 'no design file: nameplate or generic' }),
           d.el('span', { class: 'hint', text: `SI units (L/s, kPa, Pa, kW); imperial in parentheses. ${o.demo ? 'Demo fixtures.' : 'Live NF values, read only.'}` }));
       }
     }
@@ -340,6 +356,7 @@
       if (busy) return;
       busy = true;
       try {
+        await loadBundle();
         if (!resolved || force || Date.now() - recordsAt > RECORDS_MS) {
           const records = await g.NfftModelSource.loadRecords(o.api.queryAll, idOf);
           resolved = OM.resolve(records, { vocab: g.NfftRoles223p, bind: g.NfftHaystackBind });

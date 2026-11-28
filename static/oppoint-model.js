@@ -278,10 +278,14 @@
    * Works with missing data: the curve is then generic (normalized, illustrative) and the point is placed by speed alone.
    * @param {any} entry NfftOpModel.resolve() pump or fan
    * @param {Record<string, any>} values point uuid -> latest value
+   * @param {{ lib: any, bundle: any, fans: number, pumps: number }} [design] imported design values (NfftDesignValues)
    */
-  function compute(entry, values) {
+  function compute(entry, values, design) {
     const fan = entry.kind === 'fan';
-    const np = nameplate(entry);
+    const own = nameplate(entry);
+    const DV = design && design.lib;
+    const item = DV && design.bundle ? DV.forEquipment(design.bundle, entry, fan ? design.fans : design.pumps) : null;
+    const np = DV ? DV.merge(own, item, design.bundle ? design.bundle.label : '') : { ...own, sources: { designFlow: own.designFlow ? 'nameplate' : 'missing', designHead: own.designHead ? 'nameplate' : 'missing', designPower: own.designPower ? 'nameplate' : 'missing', coeffs: own.coeffs ? 'nameplate' : 'missing' } };
     const curve = M.makeCurve({ kind: fan ? 'fan' : 'pump', designFlow: np.designFlow, designHead: np.designHead, designPower: np.designPower, coeffs: np.coeffs, etaBest: np.etaBest });
     /** @type {string[]} */
     const notes = [];
@@ -375,7 +379,7 @@
 
     const illustrative = curve.illustrative;
     return {
-      entryId: entry.id, kind: entry.kind, curve, illustrative, curveSource: curve.source,
+      entryId: entry.id, kind: entry.kind, curve, illustrative, curveSource: curve.source, designSources: np.sources,
       nameplate: np, speed: { fraction: speedKnown ? sUse : null, hz, command: speedIsCmd, known: speedKnown },
       flow, flowSource, dp, dpSp, powerW: powerOut, powerSource, measuredPower: powerW,
       sys, op, cmp, notes,

@@ -165,6 +165,55 @@ function planPreview(session) {
 }
 
 /**
+ * Config in force for this session, or null. @param {any} session
+ */
+function configInForce(session) {
+  const { parseSiteConfig } = require('./runtime');
+  try {
+    const parsed = parseSiteConfig({ options: session.options || {}, stateRoot: session.root });
+    if (!parsed) return null;
+    const v = validateSiteConfig(parsed);
+    return v.ok ? v.config : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {any} session @param {any} args */
+function startGate(session, args) {
+  const signoff = require('./signoff');
+  if (signoff.targetOf(session.options) !== 'live' || args.live !== true) return { ok: true };
+  const config = configInForce(session);
+  if (!config) return { ok: false, code: 'site_config' };
+  return signoff.gate(session.root || require('./runtime').defaultStateRoot(), session.options, config, args);
+}
+
+/** @param {any} session @param {any} args */
+function signoffAction(session, args) {
+  const signoff = require('./signoff');
+  if (signoff.targetOf(session.options) === 'live') return { ok: false, code: 'not_simulation', writes: 0 };
+  const config = configInForce(session);
+  if (!config) return { ok: false, code: 'site_config', writes: 0 };
+  let report = args.report;
+  if (typeof report === 'string') report = JSON.parse(report);
+  return { ...signoff.signOff(session.root || require('./runtime').defaultStateRoot(), report, config), writes: 0 };
+}
+
+/** Target, plan hash and sign-offs for the page. @param {any} session */
+function targetInfo(session) {
+  const signoff = require('./signoff');
+  const config = configInForce(session);
+  const root = session.root || require('./runtime').defaultStateRoot();
+  const hash = config ? signoff.planHash(config) : null;
+  const list = signoff.load(root);
+  return {
+    ok: true, writes: 0, target: signoff.targetOf(session.options) || 'unset', plan_hash: hash,
+    dry_run: config ? config.dry_run !== false : true,
+    signoffs: list.slice(-5), signed_off: Boolean(hash && list.some((s) => s.plan_hash === hash && s.verdict === 'pass')),
+  };
+}
+
+/**
  * @param {any} session
  * @param {string} action
  * @param {any} args
@@ -186,6 +235,8 @@ async function adminAction(session, action, args = {}) {
   }
   if (action === 'start') {
     if (args.live === true && args.confirm_live !== true) return { ok: false, code: 'confirm_live', writes: 0 };
+    const gated = startGate(session, args);
+    if (!gated.ok) return { ...gated, writes: 0 };
     const runId = args.run_id || ulid();
     if (session.root) {
       const saved = readState(session.root);
@@ -218,6 +269,8 @@ async function adminAction(session, action, args = {}) {
     session.last = status(session);
     return session.last;
   }
+  if (action === 'signoff') return signoffAction(session, args);
+  if (action === 'target') return targetInfo(session);
   if (action === 'status') return status(session);
   if (action === 'trigger') {
     const op = String(args.op || 'get');

@@ -1,6 +1,7 @@
 'use strict';
 
 const { run } = require('./lib/sim');
+const { defaultStateRoot } = require('./lib/runtime');
 
 /**
  * Optional local-object simulator. No-op unless enableSimulator is true and
@@ -19,7 +20,7 @@ async function onTick(ctx) {
     (ctx && ctx.config) || {},
   );
   const http = sdk.http || (ctx && ctx.http);
-  return run(sdk, { options, http });
+  return run(sdk, { options, http, stateRoot: defaultStateRoot() });
 }
 
 module.exports = onTick;

@@ -13,6 +13,9 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const opoint = require('./sim_opoint.js');
+const office = require('./sim_office.js');
+const openfddRoles = require('./openfdd_roles.js');
+const simSiteConfig = require('./sim_site_config.js');
 
 const CONFIRM_PHRASE = 'CREATE_LOCAL_SIM';
 const NAME_PREFIX = 'nfft-sim.';
@@ -25,6 +28,10 @@ const TAG_POINT_BATCH = 8;
 // While the model layer is still missing point records (first ticks after install) tag more per tick so a fresh
 // bench is complete in a few minutes instead of 15 to 30. Back to TAG_POINT_BATCH once every record exists.
 const TAG_POINT_BATCH_CATCHUP = 40;
+// The office layout has about 300 objects: create and patch in bigger batches so a bench is built in a few ticks and
+// a functional test's overrides show up in the sensors within one tick.
+const OFFICE_CREATE_BATCH = 30;
+const OFFICE_PATCH_BATCH = 60;
 const STARVE_ID = 'vav-03';
 const STARVE_FACTOR = 0.45;
 const DESIGN_PA = 250;
@@ -158,9 +165,11 @@ function simId(id) {
 /**
  * @param {any} rec demo-nf-records; when given (tests), only that fixture is used and no operating point extras are added
  */
-function catalog(rec) {
-  const records = rec || demoRecords();
-  const withExtras = !rec;
+function catalog(rec, opts) {
+  const layout = (opts && opts.layout) || 'demo';
+  const records = rec || (layout === 'office' ? office.records() : demoRecords());
+  // Operating point extras belong to the demo layout (chw pumps, AHU-1 fan); the office layout carries its own points.
+  const withExtras = !rec && layout !== 'office';
   const equipment = (records.model || [])
     .filter((/** @type {any} */ r) => r.pointType !== 'SITE' && (r.attrs || {}).markers)
     .map((/** @type {any} */ r) => {
@@ -179,6 +188,7 @@ function catalog(rec) {
       if (attrs.airRef) out.airRef = simId(attrs.airRef);
       if (attrs.feeds) out.feeds = simId(attrs.feeds);
       if (attrs.isFedBy) out.isFedBy = simId(attrs.isFedBy);
+      if (attrs.floor) out.floor = String(attrs.floor);
       if (withExtras && /** @type {any} */ (opoint.EQUIPMENT_ATTRS)[attrs.id]) out.extra = /** @type {any} */ (opoint.EQUIPMENT_ATTRS)[attrs.id];
       return out;
     });
@@ -188,7 +198,8 @@ function catalog(rec) {
       equipment.push({ id: simId(e.id), dis: e.dis, markers: e.markers, siteRef: SITE_ID, kind: e.kind, ...(extra ? { extra } : {}) });
     }
   }
-  const site = { id: SITE_ID, dis: 'Functional test bench site', markers: 'site' };
+  const siteRow = (records.model || []).find((/** @type {any} */ r) => r.pointType === 'SITE');
+  const site = { id: SITE_ID, dis: layout === 'office' && siteRow ? siteRow.attrs.dis : 'Functional test bench site', markers: 'site' };
   const points = (records.points || []).map((/** @type {any} */ r) => {
     const attrs = r.attrs || {};
     const kind = attrs.kind || (typeof r.latestValue === 'boolean' ? 'Bool' : 'Number');
@@ -203,6 +214,7 @@ function catalog(rec) {
       siteRef: SITE_ID,
       objectType: kind === 'Bool' ? 'OBJECT_BINARY_VALUE' : 'OBJECT_ANALOG_VALUE',
       initial: r.latestValue === undefined || r.latestValue === null ? 0 : r.latestValue,
+      simOnly: attrs.nfftSimOnly === 'true',
     };
   });
   if (withExtras) {
@@ -213,7 +225,22 @@ function catalog(rec) {
       });
     }
   }
-  return { site, equipment, points };
+  /** @type {Record<string, string>} */
+  const feedsMap = {};
+  for (const r of records.model || []) {
+    const a = r.attrs || {};
+    if (a.airRef && a.id) feedsMap[a.id] = a.airRef;
+  }
+  if (layout === 'office') {
+    // Open-FDD role id per point, matched from the same Haystack tags Open-FDD binds on. Left off where only a
+    // catch-all role or a role of another quantity matches (see openfdd_roles.conformance for the gap list).
+    const eqMarkers = new Map(equipment.map((/** @type {any} */ e) => [e.id, e.markers]));
+    for (const p of points) {
+      const m = openfddRoles.matchRole(p.markers, eqMarkers.get(p.equipRef) || '');
+      if (m.role && !(m.gap && m.gap.startsWith('binds as'))) p.roleRef = m.role;
+    }
+  }
+  return { site, equipment, points, layout, feeds: feedsMap, starve: layout === 'office' ? office.STARVE_ID : STARVE_ID };
 }
 
 /**
@@ -382,7 +409,8 @@ function applyAhu(values, ahu) {
  * max-cooling run can show a deficiency without touching any real equipment.
  * @param {Record<string, number>} values keyed by sourceId (demo id)
  */
-function stepPhysics(values) {
+function stepPhysics(values, opts) {
+  if (opts && opts.layout === 'office') return stepOffice(values, opts);
   const next = { ...values };
   applyAhu(next, 'ahu-1');
   if (Object.prototype.hasOwnProperty.call(next, 'ahu-2.sf-speed')
@@ -412,6 +440,140 @@ function stepPhysics(values) {
 }
 
 /**
+ * Illustrative teaching fan for the office rooftop unit, sized to the 30 boxes' summed maximum (10.05 m3/s):
+ * fan total pressure = speed^2 * p0 - a * Q^2 (Pa, m3/s), so 750 Pa at 10 m3/s and full speed; duct static at the
+ * sensor = fan pressure - b * Q^2. Replaced by EnergyPlus design values when a design file is loaded in the page.
+ */
+const OFFICE_FAN = Object.freeze({ p0: 1000, a: 2.5, b: 3.5, eta: 0.65, minSpeed: 0.25, designFlowM3s: 10.0, designPressurePa: 750 });
+
+const clamp = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.max(lo, Math.min(hi, v));
+const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
+const num = (/** @type {any} */ v, /** @type {number} */ d) => (Number.isFinite(Number(v)) && v !== null && v !== undefined && v !== '' ? Number(v) : d);
+
+/**
+ * Office layout physics. Commands and setpoints (whatever NF holds, including a functional test's override) drive the
+ * sensors: fan command and speed set static pressure and fan status; damper commands set the outdoor air fraction and
+ * the mixed air temperature; DX and gas commands move the supply air temperature; each box follows its airflow
+ * setpoint up to what the duct static can deliver (one box is starved); damper position and zone temperature follow.
+ * @param {Record<string, number>} values keyed by sourceId; not mutated
+ * @param {{ feeds?: Record<string, string>, starve?: string, fan?: any }} opts
+ */
+function stepOffice(values, opts) {
+  const next = { ...values };
+  const feedsMap = (opts && opts.feeds) || {};
+  const ahus = Array.from(new Set(Object.keys(next).map((k) => (k.match(/^((?:rtu|ahu)-[0-9]+)\.sf-speed$/) || [])[1]).filter(Boolean)));
+  const boxes = Array.from(new Set(Object.keys(next).map((k) => (k.match(/^(vav-[0-9][0-9-]*)\.flow-sp$/) || [])[1]).filter(Boolean)));
+  const fan = { ...OFFICE_FAN, ...((opts && opts.fan) || {}) };
+  /** Airflow a box asks for (L/s): its maximum while a max-cooling or purge override is on, else its setpoint. */
+  const demand = (/** @type {string} */ b) => {
+    const max = num(next[`${b}.flow-max`], 300);
+    if (onOff(next[`${b}.max-cool-cmd`], false) || onOff(next[`${b}.purge-cmd`], false)) return max;
+    return clamp(num(next[`${b}.flow-sp`], max * 0.45), 0, max * 1.2);
+  };
+  /** Airflow each box gets (L/s) at a duct static (Pa). */
+  const delivered = (/** @type {string[]} */ list, /** @type {number} */ staticPa) => Object.fromEntries(list.map((b) => {
+    const max = num(next[`${b}.flow-max`], 300);
+    let capacity = 1.1 * max * Math.sqrt(Math.max(staticPa, 0) / 175);
+    if (b === (opts && opts.starve)) capacity *= STARVE_FACTOR;
+    return [b, Math.min(demand(b), capacity)];
+  }));
+  /** @type {Record<string, { fanOn: boolean, staticPa: number, dat: number, flows: Record<string, number> }>} */
+  const air = {};
+  for (const a of ahus) {
+    const served = boxes.filter((b) => (feedsMap[b] || ahus[0]) === a);
+    const fanOn = onOff(next[`${a}.sf-cmd`], true);
+    const sp = num(next[`${a}.dsp-sp`], 175);
+    // Built-in duct static loop (the sim plays the BAS): speed moves toward what holds the setpoint at today's demand.
+    const qDemand = served.reduce((t, b) => t + demand(b), 0) / 1000;
+    const k = fan.a + fan.b;
+    const s0 = clamp(num(next[`${a}.sf-speed-fb`], 65) / 100, 0, 1);
+    /** Duct static and box flows at a fan speed. @param {number} speed */
+    const solve = (speed) => {
+      let q = qDemand;
+      let st = 0;
+      /** @type {Record<string, number>} */
+      let f = {};
+      for (let i = 0; i < 12; i += 1) {
+        st = Math.max(0, speed * speed * fan.p0 - k * q * q);
+        f = delivered(served, st);
+        q = 0.5 * q + 0.5 * Object.values(f).reduce((t, v) => t + v, 0) / 1000;
+      }
+      return { st, f, q };
+    };
+    // Speed that holds the setpoint at the flow the boxes actually take, then a one-minute slew toward it.
+    let sReq = clamp(Math.sqrt((sp + k * qDemand * qDemand) / fan.p0), fan.minSpeed, 1);
+    for (let i = 0; i < 3; i += 1) sReq = clamp(Math.sqrt((sp + k * solve(sReq).q ** 2) / fan.p0), fan.minSpeed, 1);
+    const sNow = fanOn ? clamp(s0 + 0.6 * (sReq - s0), fan.minSpeed, 1) : 0;
+    let staticPa = 0;
+    /** @type {Record<string, number>} */
+    let flows = Object.fromEntries(served.map((b) => [b, 0]));
+    if (fanOn) {
+      const solved = solve(sNow);
+      staticPa = solved.st;
+      flows = solved.f;
+    }
+    const qAir = Object.values(flows).reduce((t, v) => t + v, 0) / 1000;
+    const fanDp = fanOn ? Math.max(0, sNow * sNow * fan.p0 - fan.a * qAir * qAir) : 0;
+    next[`${a}.sf-status`] = fanOn ? 1 : 0;
+    if (`${a}.sf-speed-fb` in next) next[`${a}.sf-speed-fb`] = r1(sNow * 100);
+    next[`${a}.dsp`] = r1(staticPa);
+    const oaCmd = clamp(num(next[`${a}.oa-dmp-cmd`], 20), 0, 100);
+    const raCmd = clamp(num(next[`${a}.ra-dmp-cmd`], 100 - oaCmd), 0, 100);
+    if (`${a}.oa-dmp` in next) next[`${a}.oa-dmp`] = r1(oaCmd);
+    if (`${a}.ra-dmp` in next) next[`${a}.ra-dmp`] = r1(raCmd);
+    const oat = num(next[`${a}.oat`], 12);
+    const rat = num(next[`${a}.rat`], 22.5);
+    const oaFrac = oaCmd + raCmd > 0 ? oaCmd / (oaCmd + raCmd) : 0;
+    // A small fixed sensor offset, inside a 0.5 K class sensor's tolerance, so MAT never reads exactly RAT.
+    const mat = (fanOn ? oaFrac * oat + (1 - oaFrac) * rat : rat) + 0.2;
+    next[`${a}.mat`] = r1(mat);
+    const clg = clamp(num(next[`${a}.clg-vlv-cmd`], 0), 0, 100);
+    const htgMod = clamp(num(next[`${a}.htg-vlv-cmd`], 0), 0, 100);
+    const stage1 = onOff(next[`${a}.htg-stg1-cmd`], false) ? 30 : 0;
+    const htg = Math.max(htgMod, stage1);
+    if (`${a}.clg-vlv` in next) next[`${a}.clg-vlv`] = r1(clg);
+    if (`${a}.htg-vlv` in next) next[`${a}.htg-vlv`] = r1(htgMod);
+    next[`${a}.clg-cap`] = r1(clg);
+    // Fan heat: the fan's total pressure rise ends up in the air stream (motor in the air stream), dT = dP / (eta rho cp).
+    const fanHeat = fanOn ? fanDp / (fan.eta * 1.2 * 1006) : 0;
+    const dat = fanOn ? mat + fanHeat - 0.14 * clg + 0.25 * htg : mat;
+    next[`${a}.dat`] = r1(dat);
+    air[a] = { fanOn, staticPa, dat, flows };
+  }
+  let reheatSum = 0;
+  for (const b of boxes) {
+    const src = air[feedsMap[b] || ahus[0]] || { fanOn: false, staticPa: 0, dat: 14, flows: {} };
+    const max = num(next[`${b}.flow-max`], 300);
+    let capacity = 1.1 * max * Math.sqrt(Math.max(src.staticPa, 0) / 175);
+    if (b === (opts && opts.starve)) capacity *= STARVE_FACTOR;
+    const q = src.fanOn ? (src.flows[b] ?? 0) : 0;
+    next[`${b}.flow`] = r1(q);
+    const blade = capacity > 0 ? clamp(100 * Math.sqrt(Math.min(1, demand(b) / capacity)), 5, 100) : 100;
+    if (`${b}.dmp` in next) next[`${b}.dmp`] = r1(blade);
+    const rh = clamp(num(next[`${b}.rh-cmd`], 0), 0, 100);
+    reheatSum += rh;
+    const dat = src.dat + 0.2 * rh;
+    next[`${b}.dat`] = r1(dat);
+    const zsp = num(next[`${b}.zat-sp`], 22);
+    const zat = num(next[`${b}.zat`], zsp);
+    // Load pushes the zone up, supply air pulls it toward the discharge temperature; settles within a few ticks.
+    const pull = max > 0 ? (q / max) * 0.25 : 0;
+    const drift = 0.08 + pull * (dat - zat) / 4;
+    next[`${b}.zat`] = r1(clamp(zat + drift + (zsp - zat) * 0.05, 12, 32));
+  }
+  const plants = Array.from(new Set(Object.keys(next).map((k) => (k.match(/^(hw-plant-[0-9]+)\.pump-speed$/) || [])[1]).filter(Boolean)));
+  for (const p of plants) {
+    const demand = boxes.length ? reheatSum / boxes.length : 0;
+    const spd = clamp(num(next[`${p}.pump-speed`], 55), 0, 100);
+    next[`${p}.dp`] = r1(70 * (spd / 100) ** 2);
+    next[`${p}.blr-fire`] = r1(clamp(15 + demand * 0.9, 0, 100));
+    next[`${p}.hws-t`] = r1(60);
+    next[`${p}.hwr-t`] = r1(60 - 4 - demand * 0.08);
+  }
+  return next;
+}
+
+/**
  * Starting values from the catalog initials, then one physics step.
  * @param {any} cat
  */
@@ -422,7 +584,29 @@ function initialValues(cat) {
     const n = typeof p.initial === 'boolean' ? (p.initial ? 1 : 0) : Number(p.initial);
     values[p.sourceId] = Number.isFinite(n) ? n : 0;
   }
-  return stepPhysics(values);
+  return stepPhysics(values, cat);
+}
+
+/**
+ * Present values NF holds now for objects this hook owns, keyed by sourceId. A functional test's command shows up here.
+ * @param {any} listing GET /api/v1/bacnet/local
+ * @param {any} cat
+ */
+function currentValues(listing, cat) {
+  /** @type {Map<string, string>} */
+  const byName = new Map(cat.points.map((/** @type {any} */ p) => [p.name, p.sourceId]));
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const o of (listing && listing.objects) || []) {
+    const props = o.props || [];
+    const name = (((props.find((/** @type {any} */ x) => x.property === 'PROP_OBJECT_NAME') || {}).value) || {}).characterString || '';
+    const id = byName.get(name);
+    if (!id) continue;
+    const v = ((props.find((/** @type {any} */ x) => x.property === 'PROP_PRESENT_VALUE') || {}).value) || {};
+    const n = v.real !== undefined ? Number(v.real) : v.enumerated !== undefined ? Number(v.enumerated) : v.unsigned !== undefined ? Number(v.unsigned) : NaN;
+    if (Number.isFinite(n)) out[id] = n;
+  }
+  return out;
 }
 
 /**
@@ -450,7 +634,7 @@ function unwrap(data) {
 /**
  * One simulator tick. No BACnet calls when the simulator is not armed.
  * @param {any} sdk
- * @param {{ options?: any, http?: any, log?: Function, now?: number, records?: any, createLimit?: number, patchLimit?: number, tagLimit?: number, skipTags?: boolean }} [ctx]
+ * @param {{ options?: any, http?: any, log?: Function, now?: number, records?: any, createLimit?: number, patchLimit?: number, tagLimit?: number, skipTags?: boolean, stateRoot?: string }} [ctx]
  */
 async function run(sdk, ctx) {
   const options = (ctx && ctx.options) || (sdk && sdk.options) || {};
@@ -470,11 +654,19 @@ async function run(sdk, ctx) {
     return { ok: true, skipped: 'no_bacnet_server', created: 0, patched: 0 };
   }
   const listing = unwrap(await http.get('/api/v1/bacnet/local'));
-  const cat = catalog(ctx && ctx.records);
+  const layout = ctx && ctx.records ? 'demo' : (String(unwrapOption(options.simulatorLayout) || 'office').trim() === 'demo' ? 'demo' : 'office');
+  const cat = catalog(ctx && ctx.records, { layout });
+  if (layout === 'office') {
+    // Fault injection is opt-in on the office layout, so a clean sim run can pass and be signed off.
+    const faults = String(unwrapOption(options.simulatorFaults) || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!faults.includes('starved_box')) /** @type {any} */ (cat).starve = undefined;
+  }
   const planned = planSync(listing, cat);
-  const values = initialValues(cat);
+  // Office layout: start from what NF holds now, so commands (including a test's overrides) drive the sensors.
+  const held = layout === 'office' ? currentValues(listing, cat) : {};
+  const values = layout === 'office' ? stepPhysics({ ...initialValues(cat), ...held }, cat) : initialValues(cat);
   const now = (ctx && ctx.now) || Date.now();
-  const limit = (ctx && ctx.createLimit) || CREATE_BATCH;
+  const limit = (ctx && ctx.createLimit) || (layout === 'office' ? OFFICE_CREATE_BATCH : CREATE_BATCH);
   const toCreate = planned.create.slice(0, limit);
   let created = 0;
   for (const item of toCreate) {
@@ -491,8 +683,17 @@ async function run(sdk, ctx) {
   let patched = 0;
   // Only patch objects we already own (by name). Defer patching and tagging while creates are in
   // flight so a tick stays inside the hook timeout on a small box.
-  const patchLimit = (ctx && ctx.patchLimit) || PATCH_BATCH;
-  const toPatch = toCreate.length === 0 ? sliceRotate(planned.patch, patchLimit, now) : [];
+  const patchLimit = (ctx && ctx.patchLimit) || (layout === 'office' ? OFFICE_PATCH_BATCH : PATCH_BATCH);
+  /** @type {any[]} */
+  let patchable = planned.patch;
+  if (layout === 'office') {
+    // Never patch a writable point: NF and the functional test own it. Patch sensors whose value moved, biggest first.
+    patchable = planned.patch
+      .filter((/** @type {any} */ p) => !/(^|,)writable(,|$)/.test(p.markers))
+      .filter((/** @type {any} */ p) => !(p.sourceId in held) || Math.abs(Number(values[p.sourceId]) - held[p.sourceId]) >= 0.05)
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => Math.abs(Number(values[b.sourceId]) - (held[b.sourceId] ?? 0)) - Math.abs(Number(values[a.sourceId]) - (held[a.sourceId] ?? 0)));
+  }
+  const toPatch = toCreate.length === 0 ? (layout === 'office' ? patchable.slice(0, patchLimit) : sliceRotate(patchable, patchLimit, now)) : [];
   for (const item of toPatch) {
     const body = patchBody(item, values[item.sourceId]);
     assertNoUuid({ url: '/api/v1/bacnet/local', body });
@@ -523,13 +724,35 @@ async function run(sdk, ctx) {
       throw new Error(`Upsert tags: ${httpErrorMessage(err)}`);
     }
   }
+  /** @type {{ bound: number, equipment: number } | null} */
+  let siteConfig = null;
+  if (layout === 'office' && ctx && typeof ctx.stateRoot === 'string' && toCreate.length === 0) {
+    // Bind the functional tests to the objects this hook owns, so they run against the sim with no hand-made config.
+    /** @type {number | null} */
+    let priority = null;
+    try {
+      const env = unwrap(await http.get('/api/v1/platform/env?name=BACNET_PRIORITY'));
+      const hit = ((env && env.variables) || []).find((/** @type {any} */ x) => x && (x.id === 'BACNET_PRIORITY' || x.name === 'BACNET_PRIORITY'));
+      const n = hit ? Number(hit.integer !== undefined ? hit.integer : hit.string) : NaN;
+      if (Number.isInteger(n)) priority = n;
+    } catch {
+      /* older NF: the default priority 12 */
+    }
+    const built = simSiteConfig.build(cat, listing, { priority });
+    if (built) {
+      simSiteConfig.save(ctx.stateRoot, built.config);
+      siteConfig = { bound: built.bound, equipment: built.config.equipment.length };
+    }
+  }
   return {
     ok: true,
     created,
     patched,
     tagged,
+    site_config: siteConfig,
     pending_creates: planned.create.length - toCreate.length,
-    pending_patches: Math.max(0, planned.patch.length - toPatch.length),
+    pending_patches: Math.max(0, patchable.length - toPatch.length),
+    layout,
     skipped_objects: planned.skip.length,
     points: cat.points.length,
   };
@@ -586,6 +809,7 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     if (e.airRef) attrs.airRef = e.airRef;
     if (e.feeds) attrs.feeds = e.feeds;
     if (e.isFedBy) attrs.isFedBy = e.isFedBy;
+    if (e.floor) attrs.floor = e.floor;
     if (e.extra) Object.assign(attrs, e.extra);
     out.push({
       uuid: stableUuid(`equip:${e.id}`),
@@ -608,6 +832,8 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     };
     if (p.kind) attrs.kind = p.kind;
     if (p.unit) attrs.unit = p.unit;
+    if (p.simOnly) /** @type {any} */ (attrs).nfftSimOnly = 'true';
+    if (p.roleRef) /** @type {any} */ (attrs).roleRef = p.roleRef;
     /** @type {{ name: string, layer: string, attrs: any, uuid?: string }} */
     // Haystack tags live in the model layer. A row without a layer is accepted by NF 3.10 and tags nothing.
     const row = { name: p.name, layer: 'model', attrs, uuid: ownedUuid(listing, p.name) || stableUuid(`point:${p.name}`) };
@@ -644,6 +870,11 @@ module.exports = {
   patchBody,
   stepPhysics,
   initialValues,
+  currentValues,
+  stepOffice,
+  OFFICE_CREATE_BATCH,
+  OFFICE_FAN,
+  OFFICE_PATCH_BATCH,
   assertNoUuid,
   tagPayload,
   run,

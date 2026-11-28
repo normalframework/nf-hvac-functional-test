@@ -12,6 +12,7 @@ let session = createSession();
  */
 async function onRequest(ctx) {
   const sdk = ctx && ctx.sdk ? ctx.sdk : (ctx || {});
+  if (ctx && ctx.sdk && ctx.config && !sdk.config) sdk.config = ctx.config;
   ensureRuntime(session, sdk);
   const args = (ctx && ctx.args) || sdk.args || {};
   const action = String(args.action || '');

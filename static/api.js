@@ -120,8 +120,29 @@
         return (body.schedules || []).map((/** @type {any} */ s) => ({ uuid: s.uuid, name: s.name || s.uuid }));
       },
       schedule: (/** @type {string} */ uuid) => api(`/api/v1/schedules/${encodeURIComponent(uuid)}`),
-      // Read-only: the functional test graphic's model. Open-FDD's rdf hook when that app answers, else NF records.
-      openFddHook: (/** @type {string} */ hook, /** @type {Record<string, string>} */ args, /** @type {any} */ o) => callAppHook('open-fdd', hook, args, { signal: o && o.signal, polls: 12 }),
+      // Read-only: discover an installed app with an rdf hook (open-fdd, open-fdd-lite, or any other), then fall back.
+      async openFddHook(/** @type {string} */ hook, /** @type {Record<string, string>} */ args, /** @type {any} */ o) {
+        const helper = /** @type {any} */ (root).NfftRdfSource;
+        const preferred = (helper && helper.PREFERRED) || ['open-fdd', 'open-fdd-lite'];
+        /** @type {string[]} */
+        let ids = preferred.filter((id) => id !== appId());
+        try {
+          const body = await api('/api/v1/apps', undefined, undefined, o && o.signal);
+          if (helper && typeof helper.rdfAppIds === 'function') ids = helper.rdfAppIds(body.applications || [], appId());
+        } catch {
+          /* listing failed: still try the well-known Open-FDD app ids */
+        }
+        /** @type {any} */
+        let last = new Error('no rdf hook on this station');
+        for (const id of ids) {
+          try {
+            return await callAppHook(id, hook, args, { signal: o && o.signal, polls: 12 });
+          } catch (err) {
+            last = err;
+          }
+        }
+        throw last;
+      },
       queryAll,
       async hookRuns(/** @type {string} */ hook) {
         const app = encodeURIComponent(appId());

@@ -600,6 +600,8 @@
     const pointPart = {};
     for (const p of pts) /** @type {any} */ (pointPart)[p.id] = p.part;
     let center = [(casing.from[0] + trunkEnd) / 2 + 1.5, 0, width / 2 + 2.4];
+    /** @type {{ min: number[], max: number[], size: number[], center: number[] } | null} */
+    let bounds = null;
 
     // Hydronic plants and unknown equipment from the rest of the discovered model (optional third argument).
     /** @type {any[]} */
@@ -649,7 +651,31 @@
       if (xs.length && zs.length) center = [(Math.min(...xs) + Math.max(...xs)) / 2, 0, (Math.min(...zs) + Math.max(...zs)) / 2];
     }
 
-    return { casing, elements, terminals, ducts, intakes, pipes, plants, pointPart: /** @type {Record<string, string>} */ (pointPart), center };
+    const xs = [casing.from[0], casing.to[0]];
+    const ys = [casing.from[1], casing.to[1]];
+    const zs = [casing.from[2], casing.to[2]];
+    const add = (/** @type {any} */ p) => {
+      if (!p || p.length < 3) return;
+      const x = Number(p[0]); const y = Number(p[1]); const z = Number(p[2]);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+      xs.push(x); ys.push(y); zs.push(z);
+    };
+    for (const t of terminals) { add(t.box); add(t.zonePos); add(t.tap); }
+    for (const e of elements) add(e.pos);
+    for (const d of ducts) { add(d.from); add(d.to); }
+    for (const pipe of pipes) {
+      add(pipe.from); add(pipe.to);
+      for (const pt of pipe.path || []) add(pt);
+    }
+    for (const inn of intakes) {
+      for (const pt of inn.path || []) add(pt);
+    }
+    const pad = 1.8;
+    const min = [Math.min(...xs) - pad, Math.min(...ys) - 0.6, Math.min(...zs) - pad];
+    const max = [Math.max(...xs) + pad, Math.max(...ys) + 1.2, Math.max(...zs) + pad];
+    bounds = { min, max, size: [max[0] - min[0], max[1] - min[1], max[2] - min[2]], center: [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2] };
+    center = bounds.center;
+    return { casing, elements, terminals, ducts, intakes, pipes, plants, pointPart: /** @type {Record<string, string>} */ (pointPart), center, bounds };
   }
 
   /**

@@ -17,6 +17,8 @@ const ID_PREFIX = 'nfft-sim-';
 const SITE_ID = 'nfft-sim-site';
 const INSTANCE_BASE = 8000;
 const CREATE_BATCH = 12;
+const PATCH_BATCH = 40;
+const TAG_POINT_BATCH = 20;
 const STARVE_ID = 'vav-03';
 const STARVE_FACTOR = 0.45;
 const DESIGN_PA = 250;
@@ -164,9 +166,9 @@ function catalog(rec) {
  * @param {any} listing GET /api/v1/bacnet/local body
  */
 function indexLocal(listing) {
-  /** @type {Map<number, { name: string, objectType: string, instance: number }>} */
+  /** @type {Map<number, { name: string, objectType: string, instance: number, uuid?: string }>} */
   const byInstance = new Map();
-  /** @type {Map<string, { name: string, objectType: string, instance: number }>} */
+  /** @type {Map<string, { name: string, objectType: string, instance: number, uuid?: string }>} */
   const byName = new Map();
   for (const o of (listing && listing.objects) || []) {
     const id = o.objectId || {};
@@ -175,6 +177,7 @@ function indexLocal(listing) {
     const name = ((((o.props || []).find((/** @type {any} */ x) => x.property === 'PROP_OBJECT_NAME') || {}).value) || {}).characterString
       || o.name || '';
     const rec = { name, objectType: id.objectType || 'OBJECT_ANALOG_VALUE', instance };
+    if (typeof o.uuid === 'string' && o.uuid && name.startsWith(NAME_PREFIX)) rec.uuid = o.uuid;
     byInstance.set(instance, rec);
     if (name) byName.set(name, rec);
   }
@@ -227,6 +230,35 @@ function planSync(listing, cat, opts) {
  * @param {any} item planSync create entry
  * @param {number | boolean} value
  */
+
+/**
+ * Rotate through a list across 60-second ticks so a small box is not hit with every object at once.
+ * @param {any[]} arr
+ * @param {number} limit
+ * @param {number} now
+ */
+function sliceRotate(arr, limit, now) {
+  if (!arr.length || arr.length <= limit) return arr;
+  const start = (Math.floor(Number(now) / 60000) * limit) % arr.length;
+  /** @type {any[]} */
+  const out = [];
+  for (let i = 0; i < limit; i += 1) out.push(arr[(start + i) % arr.length]);
+  return out;
+}
+
+/**
+ * Uuid NF assigned when this hook created a local object. Never returned for a foreign name.
+ * @param {any} listing
+ * @param {string} name
+ * @returns {string|undefined}
+ */
+function ownedUuid(listing, name) {
+  if (!name || !String(name).startsWith(NAME_PREFIX)) return undefined;
+  const rec = indexLocal(listing).byName.get(name);
+  if (!rec || !rec.uuid || !String(rec.name || '').startsWith(NAME_PREFIX)) return undefined;
+  return rec.uuid;
+}
+
 function createBody(item, value) {
   const objectId = { objectType: item.objectType, instance: item.instance };
   /** @type {{ property: string, value: { characterString?: string, enumerated?: number, real?: number } }[]} */
@@ -363,7 +395,7 @@ function unwrap(data) {
 /**
  * One simulator tick. No BACnet calls when the simulator is not armed.
  * @param {any} sdk
- * @param {{ options?: any, http?: any, log?: Function, now?: number, records?: any, createLimit?: number, skipTags?: boolean }} [ctx]
+ * @param {{ options?: any, http?: any, log?: Function, now?: number, records?: any, createLimit?: number, patchLimit?: number, tagLimit?: number, skipTags?: boolean }} [ctx]
  */
 async function run(sdk, ctx) {
   const options = (ctx && ctx.options) || (sdk && sdk.options) || {};
@@ -386,6 +418,7 @@ async function run(sdk, ctx) {
   const cat = catalog(ctx && ctx.records);
   const planned = planSync(listing, cat);
   const values = initialValues(cat);
+  const now = (ctx && ctx.now) || Date.now();
   const limit = (ctx && ctx.createLimit) || CREATE_BATCH;
   const toCreate = planned.create.slice(0, limit);
   let created = 0;
@@ -401,31 +434,46 @@ async function run(sdk, ctx) {
     log(`simulator: created ${item.objectType} ${item.instance} ${item.name}`);
   }
   let patched = 0;
-  // Only patch objects we already own (by name). Defer patching brand-new instances until the next tick
-  // if we still have a create backlog, so a first-enable tick stays inside the hook timeout.
-  if (toCreate.length === 0) {
-    for (const item of planned.patch) {
-      const body = patchBody(item, values[item.sourceId]);
-      assertNoUuid({ url: '/api/v1/bacnet/local', body });
-      try {
-        await http.patch('/api/v1/bacnet/local', body);
-      } catch (err) {
-        throw new Error(`UpdateLocalObject ${item.objectType} ${item.instance} ${item.name}: ${httpErrorMessage(err)}`);
-      }
-      patched += 1;
+  // Only patch objects we already own (by name). Defer patching and tagging while creates are in
+  // flight so a tick stays inside the hook timeout on a small box.
+  const patchLimit = (ctx && ctx.patchLimit) || PATCH_BATCH;
+  const toPatch = toCreate.length === 0 ? sliceRotate(planned.patch, patchLimit, now) : [];
+  for (const item of toPatch) {
+    const body = patchBody(item, values[item.sourceId]);
+    assertNoUuid({ url: '/api/v1/bacnet/local', body });
+    try {
+      await http.patch('/api/v1/bacnet/local', body);
+    } catch (err) {
+      throw new Error(`UpdateLocalObject ${item.objectType} ${item.instance} ${item.name}: ${httpErrorMessage(err)}`);
     }
+    patched += 1;
   }
+  let tagged = 0;
   const tags = tagPayload(cat, listing, planned, toCreate);
   if (tags.length && typeof http.post === 'function' && (ctx && ctx.skipTags) !== true && toCreate.length === 0) {
-    // Upsert attrs only for points whose names we own. Omit uuid unless the listing/query already
-    // returned one for that exact sim name (a point NF made when we created the local object).
-    await http.post('/api/v1/point/upsert', { points: tags });
+    const modelTags = tags.filter((t) => t.layer === 'model');
+    const pointTags = tags.filter((t) => t.layer !== 'model');
+    const tagLimit = (ctx && ctx.tagLimit) || TAG_POINT_BATCH;
+    const batch = modelTags.concat(sliceRotate(pointTags, tagLimit, now));
+    for (const row of batch) {
+      if (row.uuid && !String(row.name || '').startsWith(NAME_PREFIX)) {
+        throw new Error('refusing to upsert a uuid for a name this hook did not create');
+      }
+    }
+    try {
+      await http.post('/api/v1/point/upsert', { points: batch });
+      tagged = batch.length;
+    } catch (err) {
+      throw new Error(`Upsert tags: ${httpErrorMessage(err)}`);
+    }
   }
   return {
     ok: true,
     created,
     patched,
+    tagged,
     pending_creates: planned.create.length - toCreate.length,
+    pending_patches: Math.max(0, planned.patch.length - toPatch.length),
     skipped_objects: planned.skip.length,
     points: cat.points.length,
   };
@@ -445,13 +493,20 @@ function tagPayload(cat, listing, planned, createdThisTick) {
   out.push({
     name: cat.site.dis,
     layer: 'model',
+    pointType: 'SITE',
     attrs: { id: cat.site.id, dis: cat.site.dis, markers: cat.site.markers },
   });
   for (const e of cat.equipment) {
+    /** @type {Record<string, string>} */
+    const attrs = { id: e.id, dis: e.dis, markers: e.markers, siteRef: e.siteRef };
+    if (e.airRef) attrs.airRef = e.airRef;
+    if (e.feeds) attrs.feeds = e.feeds;
+    if (e.isFedBy) attrs.isFedBy = e.isFedBy;
     out.push({
       name: e.dis,
       layer: 'model',
-      attrs: { id: e.id, dis: e.dis, markers: e.markers, siteRef: e.siteRef },
+      pointType: 'EQUIPMENT',
+      attrs,
     });
   }
   const createdNames = new Set((createdThisTick || []).map((x) => x.name));
@@ -467,7 +522,11 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     };
     if (p.kind) attrs.kind = p.kind;
     if (p.unit) attrs.unit = p.unit;
-    out.push({ name: p.name, attrs });
+    /** @type {{ name: string, attrs: any, uuid?: string }} */
+    const row = { name: p.name, attrs };
+    const uuid = ownedUuid(listing, p.name);
+    if (uuid) row.uuid = uuid;
+    out.push(row);
   }
   return out;
 }
@@ -478,6 +537,10 @@ module.exports = {
   ID_PREFIX,
   SITE_ID,
   INSTANCE_BASE,
+  PATCH_BATCH,
+  TAG_POINT_BATCH,
+  sliceRotate,
+  ownedUuid,
   unwrapOption,
   bacnetUnits,
   isArmed,

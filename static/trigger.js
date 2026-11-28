@@ -26,6 +26,7 @@
       system_ids: [],
       stagger_minutes: 0,
       system_overrides: {},
+      roster: [],
     };
   }
 
@@ -62,12 +63,13 @@
       system_ids: Array.isArray(raw.system_ids) ? raw.system_ids.filter((/** @type {any} */ id) => typeof id === 'string' && id) : [],
       stagger_minutes: Number.isFinite(Number(raw.stagger_minutes)) && Number(raw.stagger_minutes) >= 0 ? Number(raw.stagger_minutes) : 0,
       system_overrides: raw.system_overrides && typeof raw.system_overrides === 'object' ? raw.system_overrides : {},
+      roster: Array.isArray(raw.roster) ? raw.roster.filter((/** @type {any} */ id) => typeof id === 'string' && id) : [],
     };
   }
 
   /**
    * @param {any} doc
-   * @param {{ op: string, rule?: any, windows?: any, blackout?: any, scope?: string, system_ids?: any, stagger_minutes?: any, system_overrides?: any, confirm?: unknown, phrase?: unknown, now: number, by?: string }} change
+   * @param {{ op: string, rule?: any, windows?: any, blackout?: any, scope?: string, system_ids?: any, stagger_minutes?: any, system_overrides?: any, roster?: any, confirm?: unknown, phrase?: unknown, now: number, by?: string }} change
    * @returns {{ ok: true, doc: any, note: string | null } | { ok: false, code: string, errors?: string[] }}
    */
   function apply(doc, change) {
@@ -86,8 +88,9 @@
       if (change.system_ids !== undefined) nextDoc.system_ids = Array.isArray(change.system_ids) ? change.system_ids : [];
       if (change.stagger_minutes !== undefined) nextDoc.stagger_minutes = Number(change.stagger_minutes) || 0;
       if (change.system_overrides !== undefined) nextDoc.system_overrides = change.system_overrides && typeof change.system_overrides === 'object' ? change.system_overrides : {};
-      const changed = JSON.stringify([nextDoc.rule, nextDoc.windows, nextDoc.blackout, nextDoc.scope, nextDoc.system_ids, nextDoc.stagger_minutes, nextDoc.system_overrides])
-        !== JSON.stringify([current.rule, current.windows, current.blackout, current.scope, current.system_ids, current.stagger_minutes, current.system_overrides]);
+      if (change.roster !== undefined) nextDoc.roster = Array.isArray(change.roster) ? change.roster : [];
+      const changed = JSON.stringify([nextDoc.rule, nextDoc.windows, nextDoc.blackout, nextDoc.scope, nextDoc.system_ids, nextDoc.stagger_minutes, nextDoc.system_overrides, nextDoc.roster])
+        !== JSON.stringify([current.rule, current.windows, current.blackout, current.scope, current.system_ids, current.stagger_minutes, current.system_overrides, current.roster]);
       /** @type {string | null} */
       let note = null;
       if (changed && current.mode === 'armed') {
@@ -184,5 +187,38 @@
     });
   }
 
-  return { MODES, ARM_PHRASE, TOLERANCE_MS, defaults, normalize, apply, decide, record, preview };
+
+  /**
+   * System ids a due occurrence should start. scope=all uses the saved roster (every known
+   * air handler) or a single unscoped start when the roster is empty. scope=systems uses
+   * the operator's selection; an empty selection starts nothing.
+   * @param {any} doc
+   * @returns {(string|null)[]}
+   */
+  function scheduledSystems(doc) {
+    const current = normalize(doc);
+    if (current.scope === 'systems') return current.system_ids.slice();
+    if (current.roster.length) return current.roster.slice();
+    return [null];
+  }
+
+  /**
+   * Per-system start times for a due occurrence. stagger_minutes offsets each later system.
+   * @param {any} doc
+   * @param {number} occurrence
+   * @returns {{ system_id: string|null, start_at: number, index: number }[]}
+   */
+  function startPlan(doc, occurrence) {
+    const current = normalize(doc);
+    const ids = scheduledSystems(current);
+    const step = (Number(current.stagger_minutes) || 0) * 60 * 1000;
+    return ids.map((system_id, index) => ({
+      system_id,
+      start_at: occurrence + index * step,
+      index,
+    }));
+  }
+
+  return { MODES, ARM_PHRASE, TOLERANCE_MS, defaults, normalize, apply, decide, record, preview, scheduledSystems, startPlan };
+
 });

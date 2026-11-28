@@ -234,3 +234,6 @@ pre.rrule { margin: 8px 0 0; background: #0a0f1e; border: 1px solid var(--line);
 
 .scope-list { display: flex; flex-direction: column; gap: 4px; }
 .scope-item { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; }
+
+/* Stagger-minutes input: a class, not an inline style (the page CSP is style-src 'self'). */
+.stagger-input { width: 5rem; }

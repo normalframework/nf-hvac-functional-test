@@ -36,13 +36,72 @@ function demoRecords(file) {
 }
 
 /**
+ * NF may pass an option as a bare scalar or as {boolean|string|number}.
+ * @param {any} value
+ */
+function unwrapOption(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (Object.prototype.hasOwnProperty.call(value, 'boolean')) return value.boolean;
+    if (Object.prototype.hasOwnProperty.call(value, 'string')) return value.string;
+    if (Object.prototype.hasOwnProperty.call(value, 'number')) return value.number;
+  }
+  return value;
+}
+
+/**
  * @param {any} options hook / app options
  */
 function isArmed(options) {
   const o = options || {};
-  const flag = o.enableSimulator === true || o.enableSimulator === 'true' || o.enableSimulator === 1;
-  const phrase = String(o.simulatorConfirm || '').trim();
+  const rawFlag = unwrapOption(o.enableSimulator);
+  const flag = rawFlag === true || rawFlag === 'true' || rawFlag === 1;
+  const phrase = String(unwrapOption(o.simulatorConfirm) || '').trim();
   return flag && phrase === CONFIRM_PHRASE;
+}
+
+/**
+ * BACnet EngineeringUnits enumerations (ASHRAE 135). NF 3.10.9 rejects
+ * CreateLocalObject for analog values unless PROP_UNITS is present.
+ * @param {string} [unit]
+ * @returns {number}
+ */
+function bacnetUnits(unit) {
+  switch (String(unit || '').trim()) {
+    case '%':
+    case 'PERCENT':
+    case 'percent':
+      return 98;
+    case '°C':
+    case 'degC':
+    case 'DEG_C':
+      return 62;
+    case 'Pa':
+    case 'PA':
+    case 'pascals':
+      return 53;
+    case 'L/s':
+    case 'L-PER-SEC':
+    case 'L/S':
+      return 87;
+    default:
+      return 95;
+  }
+}
+
+/**
+ * @param {any} err
+ * @returns {string}
+ */
+function httpErrorMessage(err) {
+  const e = err || {};
+  const headers = (e.response && e.response.headers) || e.headers || {};
+  const grpc = headers['grpc-message'] || headers['Grpc-Message'] || '';
+  const data = e.response && e.response.data;
+  let detail = '';
+  if (typeof data === 'string') detail = data;
+  else if (data && (data.message || data.error)) detail = String(data.message || data.error);
+  const base = e.message ? String(e.message) : String(e);
+  return [base, grpc, detail].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).join(': ');
 }
 
 /**
@@ -170,11 +229,16 @@ function planSync(listing, cat, opts) {
  */
 function createBody(item, value) {
   const objectId = { objectType: item.objectType, instance: item.instance };
+  /** @type {{ property: string, value: { characterString?: string, enumerated?: number, real?: number } }[]} */
   const props = [
     { property: 'PROP_OBJECT_NAME', value: { characterString: item.name } },
     { property: 'PROP_DESCRIPTION', value: { characterString: item.dis } },
-    presentValueProp(item, value),
   ];
+  // Analog values require Units on NF 3.10.9 CreateLocalObject.
+  if (item.objectType !== 'OBJECT_BINARY_VALUE') {
+    props.push({ property: 'PROP_UNITS', value: { enumerated: bacnetUnits(item && item.unit) } });
+  }
+  props.push(presentValueProp(item, value));
   return { objectId, props };
 }
 
@@ -328,7 +392,11 @@ async function run(sdk, ctx) {
   for (const item of toCreate) {
     const body = createBody(item, values[item.sourceId]);
     assertNoUuid({ url: '/api/v1/bacnet/local', body });
-    await http.post('/api/v1/bacnet/local', body);
+    try {
+      await http.post('/api/v1/bacnet/local', body);
+    } catch (err) {
+      throw new Error(`CreateLocalObject ${item.objectType} ${item.instance} ${item.name}: ${httpErrorMessage(err)}`);
+    }
     created += 1;
     log(`simulator: created ${item.objectType} ${item.instance} ${item.name}`);
   }
@@ -339,7 +407,11 @@ async function run(sdk, ctx) {
     for (const item of planned.patch) {
       const body = patchBody(item, values[item.sourceId]);
       assertNoUuid({ url: '/api/v1/bacnet/local', body });
-      await http.patch('/api/v1/bacnet/local', body);
+      try {
+        await http.patch('/api/v1/bacnet/local', body);
+      } catch (err) {
+        throw new Error(`UpdateLocalObject ${item.objectType} ${item.instance} ${item.name}: ${httpErrorMessage(err)}`);
+      }
       patched += 1;
     }
   }
@@ -406,6 +478,8 @@ module.exports = {
   ID_PREFIX,
   SITE_ID,
   INSTANCE_BASE,
+  unwrapOption,
+  bacnetUnits,
   isArmed,
   simId,
   catalog,

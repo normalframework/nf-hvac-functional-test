@@ -233,3 +233,45 @@ test('run creates new local objects without uuids and skips a missing BACnet ser
   assert.ok(state.upserts.length >= 1);
   assert.ok(state.upserts[0].points.every((pt) => !pt.uuid));
 });
+
+test('tagPayload sets SITE/EQUIPMENT pointTypes, feed relationships, and uuids only for nfft-sim names', () => {
+  const cat = Sim.catalog();
+  const vav = cat.equipment.find((e) => e.id === 'nfft-sim-vav-01');
+  assert.ok(vav && vav.airRef === 'nfft-sim-ahu-1');
+  const first = cat.points[0];
+  const listing = listingWith([
+    { instance: 1, name: 'WEB OA-T', uuid: 'weather-uuid' },
+    { instance: 8000, name: first.name, uuid: 'sim-uuid-1' },
+  ]);
+  const planned = Sim.planSync(listing, cat);
+  const tags = Sim.tagPayload(cat, listing, planned, []);
+  const site = tags.find((t) => t.pointType === 'SITE');
+  assert.equal(site.attrs.id, 'nfft-sim-site');
+  assert.equal(site.layer, 'model');
+  assert.equal(Object.prototype.hasOwnProperty.call(site, 'uuid'), false);
+  const equip = tags.find((t) => t.pointType === 'EQUIPMENT' && t.attrs.id === 'nfft-sim-vav-01');
+  assert.equal(equip.attrs.airRef, 'nfft-sim-ahu-1');
+  const pt = tags.find((t) => t.name === first.name);
+  assert.equal(pt.uuid, 'sim-uuid-1');
+  assert.ok(tags.every((t) => t.uuid !== 'weather-uuid'));
+  assert.ok(tags.every((t) => !t.uuid || String(t.name).startsWith('nfft-sim.')));
+});
+
+function listingWith(objects) {
+  return {
+    objects: objects.map((o) => ({
+      objectId: { objectType: o.objectType || 'OBJECT_ANALOG_VALUE', instance: o.instance },
+      uuid: o.uuid,
+      props: [{ property: 'PROP_OBJECT_NAME', value: { characterString: o.name } }],
+    })),
+  };
+}
+
+test('sliceRotate pages through a list across minutes', () => {
+  const all = [0, 1, 2, 3, 4];
+  assert.deepEqual(Sim.sliceRotate(all, 10, 0), all);
+  const a = Sim.sliceRotate(all, 2, 0);
+  const b = Sim.sliceRotate(all, 2, 60000);
+  assert.equal(a.length, 2);
+  assert.notDeepEqual(a, b);
+});

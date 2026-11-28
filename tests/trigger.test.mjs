@@ -83,3 +83,27 @@ test('preview marks runs the window or blackout would skip', () => {
   assert.equal(Trigger.preview(narrow, from, undefined, 1)[0].reason, 'outside_window');
   assert.equal(Trigger.preview(narrow, from, undefined, 1)[0].blackout, 'none');
 });
+
+test('scheduledSystems and startPlan honour scope, roster, system_ids and stagger', () => {
+  const all = Trigger.normalize({ mode: 'dry_run', rule, roster: ['ahu-1', 'ahu-2'] });
+  assert.deepEqual(Trigger.scheduledSystems(all), ['ahu-1', 'ahu-2']);
+  const together = Trigger.startPlan(all, NOON);
+  assert.equal(together.length, 2);
+  assert.equal(together[0].start_at, NOON);
+  assert.equal(together[1].start_at, NOON);
+  assert.equal(together[1].system_id, 'ahu-2');
+  const staggered = Trigger.startPlan(Trigger.normalize({ ...all, stagger_minutes: 15 }), NOON);
+  assert.equal(staggered[1].start_at, NOON + 15 * 60 * 1000);
+  const selected = Trigger.normalize({ mode: 'dry_run', rule, scope: 'systems', system_ids: ['ahu-2'], roster: ['ahu-1', 'ahu-2'] });
+  assert.deepEqual(Trigger.scheduledSystems(selected), ['ahu-2']);
+  const empty = Trigger.normalize({ mode: 'dry_run', rule, scope: 'systems', system_ids: [] });
+  assert.deepEqual(Trigger.scheduledSystems(empty), []);
+  assert.deepEqual(Trigger.startPlan(empty, NOON), []);
+  const unscope = Trigger.normalize({ mode: 'dry_run', rule });
+  assert.deepEqual(Trigger.scheduledSystems(unscope), [null]);
+  const saved = Trigger.apply(unscope, { op: 'save', scope: 'systems', system_ids: ['ahu-1'], stagger_minutes: 5, roster: ['ahu-1', 'ahu-2'], now: 0 });
+  assert.equal(saved.ok, true);
+  assert.equal(saved.doc.scope, 'systems');
+  assert.deepEqual(saved.doc.system_ids, ['ahu-1']);
+  assert.equal(saved.doc.stagger_minutes, 5);
+});

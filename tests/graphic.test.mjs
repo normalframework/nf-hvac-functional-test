@@ -172,6 +172,12 @@ test('scene layout is built from the model: parts in air-path order, one branch 
   assert.equal(L.intakes.length, 2);
   assert.equal(L.pointPart.vav_03_dmp_cmd, 'vav_03_damper');
   assert.ok(L.terminals.every((t, i, all) => i === 0 || t.tap[0] > all[i - 1].tap[0]));
+  const last = L.terminals[L.terminals.length - 1];
+  assert.ok(L.bounds, 'layout includes bounds for the camera');
+  assert.ok(L.bounds.max[0] >= last.zonePos[0], 'right-edge VAV is inside the framed bounds');
+  assert.ok(L.bounds.min[0] <= last.zonePos[0]);
+  assert.ok(L.bounds.max[2] >= last.zonePos[2] || L.bounds.min[2] <= last.zonePos[2]);
+  assert.equal(L.center[0], (L.bounds.min[0] + L.bounds.max[0]) / 2);
   // A smaller model lays out smaller, with nothing hard-coded.
   const one = S.discover(S.parseTurtle(oxigraph, DEMO.split(/(?<=\s\.)\n/).filter((x) => !/vav_0[23]|space_0[23]|zone_0[23]/.test(x)).join('\n')), vocab);
   assert.equal(T.layout(one.ahus[0], S.points).terminals.length, 1);

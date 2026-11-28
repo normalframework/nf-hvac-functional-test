@@ -231,3 +231,6 @@ pre.rrule { margin: 8px 0 0; background: #0a0f1e; border: 1px solid var(--line);
 .lg-chw { background: #2a6fdb; }
 .can-test { margin-bottom: 16px; }
 .can-test h3 { display: flex; gap: 8px; align-items: center; }
+
+.scope-list { display: flex; flex-direction: column; gap: 4px; }
+.scope-item { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; }

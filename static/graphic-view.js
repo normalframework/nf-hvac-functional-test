@@ -37,7 +37,7 @@
   }
 
   /**
-   * @param {{ api: any, demo: boolean, notify: (text: string, bad?: boolean) => void }} o
+   * @param {{ api: any, demo: boolean, notify: (text: string, bad?: boolean) => void, onSystems?: (systems: { id: string, label: string }[]) => void }} o
    */
   function mount(o) {
     const D = g.NfftDom;
@@ -97,6 +97,9 @@
         return;
       }
       groups = Sys.fromModel(got.model);
+      if (typeof o.onSystems === 'function') {
+        o.onSystems(groups.systems.map((/** @type {any} */ s) => ({ id: s.id, label: s.label || s.id })));
+      }
       renderSource(got);
       renderOverview();
       if (got.rebuilt || !current) await build(got.model);

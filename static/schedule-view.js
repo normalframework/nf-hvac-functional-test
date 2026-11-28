@@ -33,6 +33,8 @@
     /** @type {{ uuid: string, name: string }[]} */
     let scheduleList = [];
     let weekOffset = 0;
+    /** @type {{ id: string, label: string }[]} */
+    let systems = [];
     const grid = /** @type {any} */ (root).NfftWeekGrid.mount(/** @type {HTMLElement} */ (document.getElementById('weekGrid')), {
       onChange(/** @type {any} */ windows) {
         draft = { ...draft, windows: T().normalizeWindows(windows) };
@@ -40,7 +42,7 @@
       },
     });
 
-    const dirty = () => saved && draft && JSON.stringify([saved.rule, saved.windows, saved.blackout]) !== JSON.stringify([draft.rule, draft.windows, draft.blackout]);
+    const dirty = () => saved && draft && JSON.stringify([saved.rule, saved.windows, saved.blackout, saved.scope, saved.system_ids, saved.stagger_minutes, saved.roster]) !== JSON.stringify([draft.rule, draft.windows, draft.blackout, draft.scope, draft.system_ids, draft.stagger_minutes, draft.roster]);
 
     /**
      * @param {any} view admin trigger answer
@@ -242,6 +244,65 @@
       d.el('p', { class: `sub${schedule === null && b.schedule_uuid ? ' bad' : ''}`, text: status }));
     }
 
+    function renderScope() {
+      const host = document.getElementById('scheduleScope');
+      if (!host || !draft) return;
+      const d = D();
+      const siteWide = draft.scope !== 'systems';
+      const selected = new Set(draft.system_ids || []);
+      const set = (/** @type {any} */ patch) => {
+        draft = { ...draft, ...patch };
+        renderAll();
+      };
+      const toggle = (/** @type {string} */ id, /** @type {boolean} */ on) => {
+        const ids = (draft.system_ids || []).filter((/** @type {string} */ x) => x !== id);
+        if (on) ids.push(id);
+        set({ system_ids: ids });
+      };
+      const rosterIds = systems.map((s) => s.id);
+      const hint = siteWide
+        ? (systems.length
+          ? `Every air handler in the model (${systems.map((s) => s.label).join(', ') || systems.length}).`
+          : 'Every air handler in the model. The graphic tab fills this list once the model loads.')
+        : (draft.system_ids.length
+          ? `${draft.system_ids.length} system${draft.system_ids.length === 1 ? '' : 's'} selected.`
+          : 'No systems selected — a due occurrence will start nothing.');
+      const staggerHelp = (Number(draft.stagger_minutes) || 0) > 0
+        ? `Later systems start ${draft.stagger_minutes} minute${draft.stagger_minutes === 1 ? '' : 's'} after the previous.`
+        : 'Systems are queued at the same occurrence. The runner starts the next when the previous run has finished.';
+      const list = systems.length
+        ? d.el('div', { class: 'scope-list' }, ...systems.map((s) => d.el('label', { class: 'scope-item' },
+          d.el('input', {
+            type: 'checkbox',
+            checked: siteWide ? true : selected.has(s.id),
+            disabled: siteWide,
+            onchange: (/** @type {any} */ e) => toggle(s.id, e.target.checked),
+          }),
+          ` ${s.label}`)))
+        : d.el('p', { class: 'muted', text: 'No air handlers loaded yet. Open the Functional test graphic tab, or wait for the model.' });
+      d.fill(host,
+        d.el('div', { class: 'form-grid' },
+          d.el('label', { text: 'Coverage' }),
+          d.el('div', { class: 'seg' },
+            d.el('button', { type: 'button', class: siteWide ? 'on' : '', onclick: () => set({ scope: 'all', roster: rosterIds }), text: 'Site-wide' }),
+            d.el('button', { type: 'button', class: !siteWide ? 'on' : '', onclick: () => set({ scope: 'systems', roster: rosterIds }), text: 'Selected systems' })),
+          d.el('label', { text: 'Air handlers' }),
+          list,
+          d.el('label', { text: 'Start' }),
+          d.el('div', {},
+            d.el('label', {}, 'Stagger later systems by ',
+              d.el('input', {
+                type: 'number',
+                min: '0',
+                step: '1',
+                value: String(draft.stagger_minutes || 0),
+                onchange: (/** @type {any} */ e) => set({ stagger_minutes: Math.max(0, Number(e.target.value) || 0) }),
+                style: 'width: 5rem',
+              }),
+              ' minutes (0 = together)')),
+          d.el('p', { class: 'sub', text: `${hint} ${staggerHelp}` })));
+    }
+
     function renderSaveBar() {
       const state = document.getElementById('saveState');
       if (!state) return;
@@ -259,6 +320,7 @@
       renderRuns();
       renderWeek();
       renderBlackout();
+      renderScope();
       renderSaveBar();
     }
 
@@ -303,7 +365,15 @@
       dialog.showModal();
     }
 
-    /** @type {HTMLElement} */ (document.getElementById('saveBtn')).addEventListener('click', () => change('save', { rule: draft.rule, windows: draft.windows, blackout: draft.blackout }));
+    /** @type {HTMLElement} */ (document.getElementById('saveBtn')).addEventListener('click', () => change('save', {
+      rule: draft.rule,
+      windows: draft.windows,
+      blackout: draft.blackout,
+      scope: draft.scope,
+      system_ids: draft.system_ids,
+      stagger_minutes: draft.stagger_minutes,
+      roster: systems.map((s) => s.id),
+    }));
     /** @type {HTMLElement} */ (document.getElementById('revertBtn')).addEventListener('click', () => {
       draft = JSON.parse(JSON.stringify(saved));
       renderAll();
@@ -318,6 +388,11 @@
       load,
       refresh: () => draft && renderRuns(),
       setWeekOffset(/** @type {number} */ n) { weekOffset = n; renderWeek(); },
+      setSystems(/** @type {{ id: string, label: string }[]} */ list) {
+        systems = Array.isArray(list) ? list.filter((s) => s && s.id) : [];
+        if (draft && draft.scope !== 'systems') draft = { ...draft, roster: systems.map((s) => s.id) };
+        if (draft) renderScope();
+      },
       schedule: () => schedule,
     };
   }

@@ -33,7 +33,10 @@ Approximately:
 
 AHU-1 includes a heating coil and is served by the hot-water plant. AHU-2 has no heating coil. VAV-03 is capacity-starved in the physics (~45%) so a max-cooling run can show a deficiency.
 
-Creates are batched (12 per 10-second tick) so the hook stays inside its invoke timeout. Present values are patched only after the create backlog is clear, and only on objects whose names already belong to this hook.
+Creates are batched (12 per tick). After that, present-value patches and Haystack upserts run in smaller batches (40 and 20) so a 1 GB box stays responsive. The hook runs every 60 seconds with a 25 second invoke timeout.
+
+Haystack upserts include a `SITE` record (`nfft-sim-site`), `EQUIPMENT` records with `airRef` / `feeds` / `isFedBy`, and point tags with `siteRef` and `equipRef`. A point uuid is included only when `/api/v1/bacnet/local` already returned one for that exact `nfft-sim.*` name (the id NF assigned at create). Foreign names, including Open-FDD weather AVs, are never tagged with a uuid.
+
 
 ## Enabling on a bench station
 

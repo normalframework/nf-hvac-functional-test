@@ -33,7 +33,7 @@ Hooks:
 - `tick` runs every 10 seconds (`FREQ=SECONDLY;INTERVAL=10`) with an 8 second invoke timeout.
 - `admin` is on request: `start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`.
 - `trigger` runs every minute (`DTSTART:20260101T000000Z` and `RRULE:FREQ=MINUTELY;INTERVAL=1` on separate lines). It starts a run only when the stored rule is due. See below.
-- `sim` runs every 10 seconds. It is a no-op unless `enableSimulator` and `simulatorConfirm` are set as above. It creates only new local objects (no uuid on `POST /api/v1/bacnet/local`) and does not arm the trigger or touch Open-FDD.
+- `sim` runs every 60 seconds (`DTSTART` + `RRULE:FREQ=MINUTELY;INTERVAL=1`) with a 25 second invoke timeout. It is a no-op unless `enableSimulator` and `simulatorConfirm` are set as above. It creates only new local objects (no uuid on `POST /api/v1/bacnet/local`), tags them in batches, and does not arm the trigger or touch Open-FDD.
 
 ## Scheduled trigger
 
@@ -41,7 +41,7 @@ The trigger settings live in `local/trigger.json` and are edited from the page (
 
 - `disabled`: the trigger hook records nothing and starts nothing.
 - `dry_run`: due occurrences start a dry run. No writes, whatever the site config says.
-- `armed`: due occurrences start a live run. Arming takes a checkbox and typing `ARM` in the page. The site config must also have `dry_run: false`, or the run stays a rehearsal. Saving a changed rule, window or blackout puts the trigger back to `dry_run`.
+- `armed`: due occurrences start a live run. Arming takes a checkbox and typing `ARM` in the page. The site config must also have `dry_run: false`, or the run stays a rehearsal. Saving a changed rule, window, blackout or which systems the schedule covers puts the trigger back to `dry_run`. The Schedule tab can be site-wide or limited to selected air handlers, with an optional stagger between systems.
 
 The rule is evaluated in its own IANA timezone, so a noon test stays at noon across daylight saving changes. A due occurrence is also skipped when it falls outside the weekly test windows, when a run is already active or queued, or when the blackout NF schedule is occupied or has a matching special event. If that schedule cannot be read, the occurrence is skipped (`blackout_schedule_unavailable`).
 

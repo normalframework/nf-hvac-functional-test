@@ -212,6 +212,30 @@ function particles(path, count, color) {
 }
 
 /**
+ * Place the camera so the layout bounds fit in the view (padding already in bounds).
+ * @param {any} camera
+ * @param {any} controls
+ * @param {any} bounds
+ * @param {number} aspect
+ */
+function fitCamera(camera, controls, bounds, aspect) {
+  const center = v3((bounds && bounds.center) || [0, 0, 0]);
+  const size = (bounds && bounds.size) || [12, 4, 12];
+  const radius = Math.sqrt(size[0] * size[0] + size[1] * size[1] + size[2] * size[2]) / 2;
+  const fov = (camera.fov * Math.PI) / 180;
+  const half = Math.max(Math.tan(fov / 2), 0.001);
+  const fitH = radius / half;
+  const fitW = radius / (half * Math.max(aspect, 0.2));
+  const dist = Math.max(fitH, fitW) * 1.15;
+  const dir = new THREE.Vector3(-0.22, 0.5, 1).normalize();
+  camera.position.copy(center).addScaledVector(dir, Math.max(dist, 9));
+  controls.target.copy(center);
+  camera.near = Math.max(0.1, dist / 80);
+  camera.far = Math.max(200, dist * 10);
+  camera.updateProjectionMatrix();
+}
+
+/**
  * @param {HTMLElement} host element to draw into (gets a canvas and a label layer)
  * @param {any} layout NfftGraphic.layout(unit, points)
  * @param {{ pressureColor: (pa: number, limit: number) => number[], staticLimitPa: number, preserveDrawingBuffer?: boolean }} opts
@@ -231,11 +255,11 @@ export function createGraphicScene(host, layout, opts) {
   scene.fog = new THREE.Fog(C.bg, 30, 70);
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
   const center = v3(layout.center);
-  camera.position.set(center.x - 2.5, 8.5, center.z + 13);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.copy(center);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI * 0.49;
+  camera.aspect = 1;
+  fitCamera(camera, controls, layout.bounds || { center: layout.center, size: [16, 6, 16] }, 1);
 
   scene.add(new THREE.HemisphereLight(0xb8c7ff, 0x0b1020, 0.9));
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -453,6 +477,8 @@ export function createGraphicScene(host, layout, opts) {
     raf = requestAnimationFrame(frame);
   }
 
+  let userMoved = false;
+  controls.addEventListener('start', () => { userMoved = true; });
   function resize() {
     const w = host.clientWidth || 800;
     const h = host.clientHeight || 480;
@@ -460,7 +486,11 @@ export function createGraphicScene(host, layout, opts) {
     renderer.domElement.style.width = `${w}px`;
     renderer.domElement.style.height = `${h}px`;
     camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    if (!userMoved) {
+      fitCamera(camera, controls, layout.bounds || { center: layout.center, size: [16, 6, 16] }, camera.aspect);
+    } else {
+      camera.updateProjectionMatrix();
+    }
   }
   resize();
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;

@@ -228,6 +228,11 @@ async function adminAction(session, action, args = {}) {
       rule: args.rule,
       windows: args.windows,
       blackout: args.blackout,
+      scope: args.scope,
+      system_ids: args.system_ids,
+      stagger_minutes: args.stagger_minutes,
+      system_overrides: args.system_overrides,
+      roster: args.roster,
       confirm: args.confirm,
       phrase: args.phrase,
       by: typeof args.by === 'string' ? args.by : '',
@@ -291,6 +296,18 @@ async function tick(sdk, session) {
  */
 async function drive(session) {
   const saved = readState(session.root);
+  const now = nowOf(session);
+  const phase = saved.state && saved.state.phase;
+  if (!session.runner && !saved.pending_start && !ACTIVE.has(phase) && Array.isArray(saved.pending_queue) && saved.pending_queue.length) {
+    const dueAt = saved.pending_queue.findIndex((/** @type {any} */ item) => Number(item && item.start_at) <= now);
+    if (dueAt >= 0) {
+      const due = saved.pending_queue[dueAt];
+      const rest = saved.pending_queue.filter((/** @type {any} */ _, i) => i !== dueAt);
+      writeState(session.root, { ...saved, pending_start: due, pending_queue: rest });
+      saved.pending_start = due;
+      saved.pending_queue = rest;
+    }
+  }
   if (!session.runner && saved.pending_start && session.factory) {
     const runner = await session.factory(saved.pending_start);
     if (!runner) {

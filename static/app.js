@@ -66,8 +66,17 @@
     if (demo) $('footer').textContent = 'Demo mode: fixture data from examples/site-config.example.json on a 60x clock. Nothing is sent to any station.';
 
     const machine = g.NfftMachineView.mount($('machineSvg'));
-    const graphic = g.NfftGraphicView.mount({ api, demo, notify });
-    const schedule = g.NfftScheduleView.mount({
+    /** @type {any} */
+    let schedule;
+    const graphic = g.NfftGraphicView.mount({
+      api,
+      demo,
+      notify,
+      onSystems(/** @type {{ id: string, label: string }[]} */ list) {
+        if (schedule && typeof schedule.setSystems === 'function') schedule.setSystems(list);
+      },
+    });
+    schedule = g.NfftScheduleView.mount({
       api,
       notify,
       onChange(/** @type {any} */ _saved, /** @type {any} */ view) {

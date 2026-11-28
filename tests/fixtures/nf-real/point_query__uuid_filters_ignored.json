@@ -1,0 +1,25 @@
+{
+ "id": "point_query__uuid_filters_ignored",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/point/query",
+  "body": {
+   "layer": "model",
+   "uuid": "00000000-0000-0000-0000-000000000000",
+   "uuids": [
+    "00000000-0000-0000-0000-000000000000"
+   ],
+   "equipRef": "x"
+  }
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "points": [],
+   "totalCount": "<all points in layer>",
+   "nextPageToken": ""
+  }
+ },
+ "note": "Observed: uuid, uuids and equipRef are ignored (totalCount counted every point in the layer); only structuredQuery.field filters."
+}

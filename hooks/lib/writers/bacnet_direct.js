@@ -1,6 +1,7 @@
 'use strict';
 
 const { relinquishIfOurs } = require('./verify');
+const { errorText } = require('../nf/client');
 
 class BacnetDirectWriter {
   /**
@@ -33,8 +34,8 @@ class BacnetDirectWriter {
       value: spec.value,
     });
     if (reply.errors && reply.errors.length) {
-      this.ledger.append({ ...base, kind: 'failed', sent: true, error: reply.errors[0].error.code });
-      return { ok: false, error: reply.errors[0].error.code };
+      this.ledger.append({ ...base, kind: 'failed', sent: true, error: errorText(reply.errors[0].error) });
+      return { ok: false, error: errorText(reply.errors[0].error) };
     }
     this.ledger.append({ ...base, kind: 'active', sent: true });
     return { ok: true };

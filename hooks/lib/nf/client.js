@@ -14,6 +14,41 @@ class NfError extends Error {
   }
 }
 
+/**
+ * Text for an in-band NF error, `{ ts, message, error: { '@type', message } }`.
+ * Real NF carries no `code`, so the message is the only identifier; older mocks set `code`.
+ * @param {any} error
+ * @returns {string}
+ */
+function errorText(error) {
+  if (!error) return 'unknown';
+  if (typeof error === 'string') return error;
+  const text = error.code || error.message || (error.error && error.error.message);
+  return text ? String(text) : 'unknown';
+}
+
+/**
+ * Real NF's query body: `layer`, `pageSize`, `pageOffset`, `pointType`, and
+ * `structuredQuery.field {property, text}`. Unknown fields (`uuid`, `equip_ref`, `role`) are
+ * ignored by NF, so the legacy `equip_ref` filter is translated and `markers` are matched
+ * on the returned attrs.markers.
+ * @param {Record<string, any>} query
+ */
+function toRealQuery(query) {
+  const body = { ...query };
+  const markers = Array.isArray(body.markers) ? body.markers.map(String) : [];
+  delete body.markers;
+  if (typeof body.equip_ref === 'string' && body.equip_ref) {
+    body.structuredQuery = { field: { property: 'equipRef', text: body.equip_ref } };
+  }
+  delete body.equip_ref;
+  // NF returns zero points when no page size is given.
+  if (body.pageSize === undefined && body.page_size === undefined) body.pageSize = DEFAULT_PAGE_SIZE;
+  return { body, markers };
+}
+
+const DEFAULT_PAGE_SIZE = 500;
+
 class NfClient {
   /**
    * @param {{ baseUrl: string, fetch?: typeof fetch, retries?: number, sleep?: (ms: number) => Promise<void> }} options
@@ -38,8 +73,15 @@ class NfClient {
   /**
    * @param {Record<string, unknown>} query
    */
-  queryPoints(query) {
-    return this.request('/api/v1/point/query', { method: 'POST', body: query });
+  async queryPoints(query) {
+    const { body, markers } = toRealQuery(query);
+    const reply = await this.request('/api/v1/point/query', { method: 'POST', body });
+    if (!markers.length || !Array.isArray(reply.points)) return reply;
+    const points = reply.points.filter((point) => {
+      const have = String((point.attrs && point.attrs.markers) || '').split(',').map((item) => item.trim());
+      return markers.every((marker) => have.includes(marker));
+    });
+    return { ...reply, points };
   }
 
   /**
@@ -50,10 +92,19 @@ class NfClient {
   }
 
   /**
-   * @param {any} batch
+   * History samples, `POST /api/v1/points/data` (`/api/v1/data` is not an NF route).
+   * Callers pass `{ batches: [{ uuid, values: [{ ts, value }] }] }`; NF reads `real`.
+   * @param {{ batches?: { uuid: string, values: { ts?: string, value?: number, real?: number }[] }[] }} batch
    */
   addData(batch) {
-    return this.request('/api/v1/data', { method: 'POST', body: batch });
+    const points = (batch.batches || []).map((item) => ({
+      uuid: item.uuid,
+      values: (item.values || []).map((sample) => ({
+        ts: sample.ts,
+        real: sample.real !== undefined ? sample.real : sample.value,
+      })),
+    }));
+    return this.request('/api/v1/points/data', { method: 'POST', body: { points } });
   }
 
   /**
@@ -99,6 +150,8 @@ class NfClient {
    * The command service's process-wide BACnet priority.
    * NF documents this as the BACNET_PRIORITY environment variable, default 12,
    * and exposes platform env through GET /api/v1/platform/env.
+   * Real NF ignores the `name` filter, returns every variable, and identifies each by `id`
+   * (`name` is the display name, "Bacnet Priority").
    * A missing route or an empty list means this NF build did not expose it.
    * @returns {Promise<number | null>}
    */
@@ -111,7 +164,7 @@ class NfClient {
       throw error;
     }
     const variables = Array.isArray(body.variables) ? body.variables : [];
-    const match = variables.find((item) => item && item.name === 'BACNET_PRIORITY');
+    const match = variables.find((item) => item && (item.id === 'BACNET_PRIORITY' || item.name === 'BACNET_PRIORITY'));
     if (!match) return null;
     const raw = match.integer !== undefined ? match.integer : match.string;
     const priority = Number(raw);
@@ -172,7 +225,7 @@ class NfClient {
           body: spec.body === undefined ? undefined : JSON.stringify(spec.body),
         });
         const text = await response.text();
-        const body = text ? JSON.parse(text) : {};
+        const body = parseBody(response, text);
         if (response.status >= 500 && attempt < attempts) {
           await this.sleep(0);
           lastError = new NfError(`status ${response.status}`, response.status, body);
@@ -191,4 +244,22 @@ class NfClient {
   }
 }
 
-module.exports = { NfClient, NfError };
+/**
+ * Real NF answers failures with an empty body (application/grpc or text/plain) and unknown
+ * routes with its HTML app shell, so only a JSON content type is parsed.
+ * @param {{ ok: boolean, status: number, headers?: { get?: (name: string) => string | null } }} response
+ * @param {string} text
+ */
+function parseBody(response, text) {
+  if (!text) return {};
+  const type = response.headers && typeof response.headers.get === 'function'
+    ? String(response.headers.get('content-type') || '')
+    : 'application/json';
+  if (!type.includes('json')) {
+    if (response.ok) throw new NfError(`not an NF API reply (${type || 'no content type'})`, response.status, null);
+    return {};
+  }
+  return JSON.parse(text);
+}
+
+module.exports = { NfClient, NfError, errorText, toRealQuery };

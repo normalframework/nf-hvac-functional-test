@@ -1,7 +1,7 @@
 'use strict';
 
 const { encodeValue, readArray } = require('./verify');
-const { NfError } = require('../nf/client');
+const { NfError, errorText } = require('../nf/client');
 const { formatDuration } = require('../nf/duration');
 
 class NfCommandWriter {
@@ -66,8 +66,8 @@ class NfCommandWriter {
       }],
     });
     if (reply.errors && reply.errors.length) {
-      this.ledger.append({ ...base, kind: 'failed', sent: true, error: reply.errors[0].error.code });
-      return { ok: false, error: reply.errors[0].error.code };
+      this.ledger.append({ ...base, kind: 'failed', sent: true, error: errorText(reply.errors[0].error) });
+      return { ok: false, error: errorText(reply.errors[0].error) };
     }
     this.ledger.append({ ...base, kind: 'active', command_id: command.id, sent: true });
     return { ok: true, command_id: command.id };

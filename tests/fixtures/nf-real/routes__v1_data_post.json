@@ -1,0 +1,19 @@
+{
+ "id": "routes__v1_data_post",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/data",
+  "body": {
+   "batches": []
+  }
+ },
+ "response": {
+  "status": 405,
+  "contentType": "text/html",
+  "body": {
+   "$kind": "spa-html",
+   "$prefix": ""
+  }
+ },
+ "note": "Not an NF route."
+}

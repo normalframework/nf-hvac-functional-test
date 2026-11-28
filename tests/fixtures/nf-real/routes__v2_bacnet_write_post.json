@@ -1,0 +1,19 @@
+{
+ "id": "routes__v2_bacnet_write_post",
+ "request": {
+  "method": "POST",
+  "path": "/api/v2/bacnet/write",
+  "body": {
+   "writes": []
+  }
+ },
+ "response": {
+  "status": 405,
+  "contentType": "text/html",
+  "body": {
+   "$kind": "spa-html",
+   "$prefix": ""
+  }
+ },
+ "note": "Not an NF route."
+}

@@ -1,0 +1,19 @@
+{
+ "id": "routes__v1_point_upsert_post",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/point/upsert",
+  "body": {
+   "points": []
+  }
+ },
+ "response": {
+  "status": 405,
+  "contentType": "text/html",
+  "body": {
+   "$kind": "spa-html",
+   "$prefix": ""
+  }
+ },
+ "note": "Not an NF route; the point write route is /api/v1/point/points."
+}

@@ -1,0 +1,81 @@
+{
+ "id": "platform__env",
+ "request": {
+  "method": "GET",
+  "path": "/api/v1/platform/env?name=BACNET_PRIORITY"
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "variables": [
+    {
+     "id": "APPLICATION_SCHEDULE_GRACE",
+     "name": "Schedule Grace",
+     "section": "Application",
+     "optionGroup": "",
+     "optionName": "",
+     "description": "How long after a schedule tick has passed to still run the hook, if we are behind.",
+     "isAdvanced": false,
+     "isDefault": true,
+     "isEmpty": false,
+     "duration": "3s",
+     "isSecret": false
+    },
+    {
+     "id": "BACNET_PRIORITY",
+     "name": "Bacnet Priority",
+     "section": "Command",
+     "optionGroup": "",
+     "optionName": "",
+     "description": "The BACnet priority level to write when performing commands",
+     "isAdvanced": false,
+     "isDefault": true,
+     "isEmpty": false,
+     "integer": "12",
+     "isSecret": false
+    },
+    {
+     "id": "FOX_PRIORITY",
+     "name": "Fox Priority",
+     "section": "Command",
+     "optionGroup": "",
+     "optionName": "",
+     "description": "The default Fox priority level",
+     "isAdvanced": false,
+     "isDefault": true,
+     "isEmpty": false,
+     "integer": "12",
+     "isSecret": false
+    },
+    {
+     "id": "NF_OPCUA_WRITE_PRIORITY",
+     "name": "Write Priority",
+     "section": "OPC-UA",
+     "optionGroup": "Writes",
+     "optionName": "",
+     "description": "The command priority for writes received over OPC-UA",
+     "isAdvanced": false,
+     "isDefault": true,
+     "isEmpty": false,
+     "integer": "10",
+     "isSecret": false
+    },
+    {
+     "id": "UDMI_WRITEBACK_PRIORITY",
+     "name": "Udmi Writeback Priority",
+     "section": "UDMI",
+     "optionGroup": "Writeback",
+     "optionName": "",
+     "description": "BACnet priority used for UDMI writes",
+     "isAdvanced": false,
+     "isDefault": true,
+     "isEmpty": false,
+     "integer": "10",
+     "isSecret": false
+    }
+   ]
+  }
+ },
+ "note": "trimmed from 222 variables; NF ignores the name filter and returns every variable"
+}

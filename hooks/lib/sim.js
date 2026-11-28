@@ -21,6 +21,9 @@ const INSTANCE_BASE = 8000;
 const CREATE_BATCH = 8;
 const PATCH_BATCH = 15;
 const TAG_POINT_BATCH = 8;
+// While the model layer is still missing point records (first ticks after install) tag more per tick so a fresh
+// bench is complete in a few minutes instead of 15 to 30. Back to TAG_POINT_BATCH once every record exists.
+const TAG_POINT_BATCH_CATCHUP = 40;
 const STARVE_ID = 'vav-03';
 const STARVE_FACTOR = 0.45;
 const DESIGN_PA = 250;
@@ -479,9 +482,9 @@ async function run(sdk, ctx) {
   let tagged = 0;
   const tags = tagPayload(cat, listing, planned, toCreate);
   if (tags.length && typeof http.post === 'function' && (ctx && ctx.skipTags) !== true && toCreate.length === 0) {
-    const modelTags = tags.filter((t) => t.layer === 'model');
-    const pointTags = tags.filter((t) => t.layer !== 'model');
-    const tagLimit = (ctx && ctx.tagLimit) || TAG_POINT_BATCH;
+    const modelTags = tags.filter(isModelRecord);
+    const pointTags = tags.filter((t) => !isModelRecord(t));
+    const tagLimit = (ctx && ctx.tagLimit) || await tagBatchSize(http, tags.length);
     const batch = modelTags.concat(sliceRotate(pointTags, tagLimit, now));
     for (const row of batch) {
       const model = row.pointType === 'SITE' || row.pointType === 'EQUIPMENT';
@@ -506,6 +509,33 @@ async function run(sdk, ctx) {
     skipped_objects: planned.skip.length,
     points: cat.points.length,
   };
+}
+
+/**
+ * SITE and EQUIPMENT rows have no BACnet object behind them: they are tagged on every tick. Point rows rotate.
+ * @param {{ pointType?: string }} row
+ */
+function isModelRecord(row) {
+  return row.pointType === 'SITE' || row.pointType === 'EQUIPMENT';
+}
+
+/**
+ * How many point tag rows to upsert this tick: TAG_POINT_BATCH once the model layer holds a record for every
+ * site, equipment and point row, TAG_POINT_BATCH_CATCHUP while records are still missing. A failed count falls
+ * back to the steady batch.
+ * @param {any} http
+ * @param {number} expectedRecords
+ */
+async function tagBatchSize(http, expectedRecords) {
+  try {
+    const res = await http.post('/api/v1/point/query', { layer: 'model', page_size: 1 });
+    const body = unwrap(res);
+    const have = Number(body && body.totalCount);
+    if (Number.isFinite(have) && have < expectedRecords) return TAG_POINT_BATCH_CATCHUP;
+  } catch (_err) {
+    // keep the steady batch
+  }
+  return TAG_POINT_BATCH;
 }
 
 /**
@@ -553,8 +583,9 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     };
     if (p.kind) attrs.kind = p.kind;
     if (p.unit) attrs.unit = p.unit;
-    /** @type {{ name: string, attrs: any, uuid?: string }} */
-    const row = { name: p.name, attrs, uuid: ownedUuid(listing, p.name) || stableUuid(`point:${p.name}`) };
+    /** @type {{ name: string, layer: string, attrs: any, uuid?: string }} */
+    // Haystack tags live in the model layer. A row without a layer is accepted by NF 3.10 and tags nothing.
+    const row = { name: p.name, layer: 'model', attrs, uuid: ownedUuid(listing, p.name) || stableUuid(`point:${p.name}`) };
     out.push(row);
   }
   return out;
@@ -571,6 +602,9 @@ module.exports = {
   stableUuid,
   PATCH_BATCH,
   TAG_POINT_BATCH,
+  TAG_POINT_BATCH_CATCHUP,
+  tagBatchSize,
+  isModelRecord,
   sliceRotate,
   ownedUuid,
   unwrapOption,

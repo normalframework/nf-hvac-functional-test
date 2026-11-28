@@ -350,3 +350,134 @@ test('real NF has a bacnet/writeproperty route; it is recorded as existing and d
   assert.equal(fx('routes__bacnet_writeproperty_empty_body').response.status, 400);
   assert.match(fx('routes__bacnet_writeproperty_empty_body').note, /NOT verified/);
 });
+
+// ---- Priority arrays and command writes, recorded from a real NF reading a bench BACnet controller ----
+
+const { unwrapSlot, slotMatches, parsePriorityArray } = require('../hooks/lib/writers/verify');
+const { DeviceObject } = require('./fixtures/fake/device');
+
+const BACNET_POINT = {
+  points: [{
+    uuid: SIM,
+    hpldata: {
+      deviceAddress: { mac: 'wAACCrrA', net: 2, adr: 'Bw==', portId: 1 },
+      property: { objectId: { objectType: 'OBJECT_ANALOG_OUTPUT', instance: 8101 } },
+      hasPriorityArray: true,
+    },
+  }],
+};
+
+/** NfClient whose point lookup answers a BACnet point and whose readproperty answers `replyBody` (or a status). */
+function clientAnswering(replyBody, status = 200) {
+  const fetchImpl = async (url) => {
+    if (String(url).endsWith('/api/v1/point/query')) {
+      return new Response(JSON.stringify(BACNET_POINT), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify(replyBody), { status, headers: { 'content-type': 'application/json' } });
+  };
+  return new NfClient({ baseUrl: 'http://nf.invalid', fetch: fetchImpl, sleep: async () => {} });
+}
+
+test('the client parses recorded priority arrays: empty, held by another writer, and our command slot', async () => {
+  const empty = await clientAnswering(fx('bacnet__readproperty_priority_array_empty').response.body).readPriorityArray({ uuid: SIM });
+  assert.deepEqual(empty, Array(16).fill(null));
+
+  const held = await clientAnswering(fx('bacnet__readproperty_priority_array_held').response.body).readPriorityArray({ uuid: SIM });
+  assert.equal(held[7], 12);
+  assert.equal(held.filter((slot) => slot !== null).length, 1);
+
+  const binary = await clientAnswering(fx('bacnet__readproperty_priority_array_binary_empty').response.body).readPriorityArray({ uuid: SIM });
+  assert.deepEqual(binary, Array(16).fill(null));
+
+  // The command was written with request priority 16 and NF filled slot 12, its BACNET_PRIORITY.
+  const during = await clientAnswering(fx('bacnet__readproperty_priority_array_during_command').response.body).readPriorityArray({ uuid: SIM });
+  assert.equal(during[11], 1);
+  assert.equal(during[15], null, 'request priority 16 is ignored');
+  assert.equal(during.filter((slot) => slot !== null).length, 1);
+
+  const after = await clientAnswering(fx('bacnet__readproperty_priority_array_after_cancel').response.body).readPriorityArray({ uuid: SIM });
+  assert.deepEqual(after, Array(16).fill(null), 'cancelling the command empties the slot');
+});
+
+test('slot encodings: null:true, real, enumerated; a boolean write matches a binary slot', () => {
+  assert.equal(unwrapSlot({ null: true, array: [] }), null);
+  assert.equal(unwrapSlot({ real: 12, array: [] }), 12);
+  assert.equal(unwrapSlot({ enumerated: 1, array: [] }), 1);
+  assert.equal(unwrapSlot({ nonsense: 1 }), undefined);
+  assert.equal(parsePriorityArray(fx('bacnet__readproperty_priority_array_held').response.body.value.array)[7], 12);
+  assert.equal(parsePriorityArray([{ nonsense: 1 }]), 'unreadable');
+  assert.equal(slotMatches(1, true), true);
+  assert.equal(slotMatches(0, false), true);
+  assert.equal(slotMatches(0, true), false);
+  assert.equal(slotMatches(12, 12), true);
+  assert.equal(slotMatches(null, 0), false);
+});
+
+test('an in-band BACnet error on the priority array reads as unreadable', async () => {
+  const body = fx('bacnet__readproperty_unknown_property_in_band_error').response.body;
+  assert.equal(await clientAnswering(body).readPriorityArray({ uuid: SIM }), null);
+});
+
+test('the fake answers priority array, relinquish default and binary values in the recorded shape', async () => {
+  await withFake(async ({ fake }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM } });
+    const binaryId = '00000000-0000-4000-8000-0000000000b1';
+    fake.points.set(binaryId, new DeviceObject({ uuid: binaryId, layer: LAYER, type: 'bo', relinquish: false }));
+    const ask = async (uuid, property) => {
+      const listed = await send(fake, 'POST', '/api/v1/point/query', { layer: LAYER, pageSize: 50 });
+      const data = listed.json.points.find((point) => point.uuid === uuid).hpldata;
+      const device = data.deviceAddress;
+      const object = data.property.objectId;
+      return send(fake, 'GET', `/api/v1/bacnet/readproperty?object_id.object_type=${object.objectType}&object_id.instance=${object.instance}&property_id=${property}&array_index=4294967295&device_address.mac=${encodeURIComponent(device.mac)}&device_address.port_id=${device.portId}`);
+    };
+    const emptyArray = await ask(SIM, 'PROP_PRIORITY_ARRAY');
+    assert.deepEqual(shapeProblems(emptyArray.json, fx('bacnet__readproperty_priority_array_empty').response.body), []);
+    fake.writeSlot(SIM, 8, 12);
+    const held = await ask(SIM, 'PROP_PRIORITY_ARRAY');
+    assert.deepEqual(shapeProblems(held.json, fx('bacnet__readproperty_priority_array_held').response.body), []);
+    assert.deepEqual(held.json.value.array[7], { real: 12, array: [] });
+    assert.deepEqual(held.json.value.array[0], { null: true, array: [] });
+
+    const relinquish = await ask(SIM, 'PROP_RELINQUISH_DEFAULT');
+    assert.deepEqual(shapeProblems(relinquish.json, fx('bacnet__readproperty_relinquish_default_analog').response.body), []);
+    const binaryRelinquish = await ask(binaryId, 'PROP_RELINQUISH_DEFAULT');
+    assert.deepEqual(shapeProblems(binaryRelinquish.json, fx('bacnet__readproperty_relinquish_default_binary').response.body), []);
+    const binaryValue = await ask(binaryId, 'PROP_PRESENT_VALUE');
+    assert.deepEqual(shapeProblems(binaryValue.json, fx('bacnet__readproperty_present_value_binary').response.body), []);
+    const binaryArray = await ask(binaryId, 'PROP_PRIORITY_ARRAY');
+    assert.deepEqual(shapeProblems(binaryArray.json, fx('bacnet__readproperty_priority_array_binary_empty').response.body), []);
+  });
+});
+
+test('command write: the fake answers in the recorded shape and fills NF\'s BACNET_PRIORITY slot, not the requested one', async () => {
+  await withFake(async ({ fake, client }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM } });
+    const recorded = fx('commands__write_applied');
+    const started = await client.startCommand({ name: 'contract-probe', duration: '60s' });
+    const reply = await client.writeInCommand({
+      command_id: started.id,
+      cancel_on_conflict: true,
+      writes: [{ point: { uuid: SIM, layer: 'default' }, priority: 16, value: { real: 1 } }],
+    });
+    assert.deepEqual(shapeProblems(reply, recorded.response.body), []);
+    assert.equal(reply.writes[0].systemPriority, '0');
+    assert.equal('priority' in reply.writes[0], false, 'real NF echoes no BACnet priority');
+
+    const slots = await client.readPriorityArray({ uuid: SIM });
+    assert.equal(slots[7], 1, 'the fake commandPriority is 8');
+    assert.equal(slots[15], null);
+
+    const listed = await send(fake, 'GET', '/api/v2/command');
+    assert.deepEqual(shapeProblems(listed.json, fx('commands__list_with_active_write').response.body), []);
+
+    await client.cancelCommand(started.id);
+    assert.deepEqual(await client.readPriorityArray({ uuid: SIM }), Array(16).fill(null));
+  });
+  await withFake(async ({ fake, client }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM } });
+    const started = await client.startCommand({ name: 'contract-probe', duration: '60s' });
+    await client.writeInCommand({ command_id: started.id, writes: [{ point: { uuid: SIM, layer: 'default' }, priority: 16, value: { real: 1 } }] });
+    const slots = await client.readPriorityArray({ uuid: SIM });
+    assert.equal(slots[11], 1, 'a NF with BACNET_PRIORITY 12 fills slot 12');
+  }, { commandPriority: 12 });
+});

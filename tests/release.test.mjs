@@ -343,5 +343,5 @@ test('slot reads: held, empty and unreadable, and the wire encodings', async () 
   assert.equal(unwrapSlot({ enumerated: 2 }), 2);
   assert.equal(unwrapSlot({ enum: 'on' }), 'on');
   assert.equal(unwrapSlot({ null: 0 }), null);
-  assert.deepEqual([encodeValue(null), encodeValue(true), encodeValue(4), encodeValue('on')], [{ null: 0 }, { boolean: true }, { real: 4 }, { enum: 'on' }]);
+  assert.deepEqual([encodeValue(null), encodeValue(true), encodeValue(4), encodeValue('on')], [{ null: true }, { boolean: true }, { real: 4 }, { enum: 'on' }]);
 });

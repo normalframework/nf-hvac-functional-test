@@ -8,7 +8,7 @@ cd nf-hvac-functional-test
 npm ci --omit=dev
 ```
 
-Point the NF app installer at this directory. The app id is `nf-hvac-functional-test`.
+Point the NF app installer at this directory. The app id is `nf-hvac-functional-test`. NF 3.10 derives an app's id from its name (lower case, anything that is not a letter or digit becomes `-`) and ignores the `id` it is sent, so `name` in `app.json` is `nf-hvac-functional-test` too: any other name installs under a different id and the page URL, hook URLs and docs below stop matching. The page title still reads "HVAC functional test".
 
 ## Options
 

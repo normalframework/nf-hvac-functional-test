@@ -81,7 +81,11 @@
       const scen = await scenarios();
       source = g.NfftModelSource.createModelSource({
         callOpenFddHook: o.api.openFddHook || null,
-        loadRecords: () => g.NfftModelSource.loadRecords(o.api.queryAll, idOf),
+        loadRecords: async () => {
+          const recs = await g.NfftModelSource.loadRecords(o.api.queryAll, idOf);
+          rememberEquipRefs(recs);
+          return recs;
+        },
         modelJs,
         build: (/** @type {string} */ turtle) => g.NfftTags223p.buildModel(turtle, { oxigraph: ox, s223: S, vocab: g.NfftRoles223p, bind: g.NfftHaystackBind, scenarios: scen }),
       });
@@ -177,7 +181,7 @@
         const plants = (current && current.model && current.model.plants) || [];
         const extra = plants.flatMap((/** @type {any} */ p) => (p.props || []).map((/** @type {any} */ q) => q.id).filter(Boolean));
         const uuids = [...new Set(pts.map((/** @type {any} */ p) => p.id).concat(extra))];
-        if (g.NfftModelSource.loadValues) return g.NfftModelSource.loadValues(o.api.queryAll, { uuids, equipIds: equipIds(unit) });
+        if (g.NfftModelSource.loadValues) return g.NfftModelSource.loadValues(o.api.queryAll, { uuids, equipIds: await equipIds(unit) });
         const recs = await g.NfftModelSource.loadRecords(o.api.queryAll, idOf);
         const want = new Set(uuids);
         return Object.fromEntries(recs.points.filter((/** @type {any} */ p) => want.has(p.uuid)).map((/** @type {any} */ p) => [p.uuid, { value: p.latestValue, ts: p.latestTs || (p.attrs || {}).lastTs || null }]));
@@ -186,13 +190,23 @@
       }
     }
 
-    function equipIds(/** @type {any} */ unit) {
+    // The 223P ids are record uuids; points carry the equipment's own id in equipRef, so map one to the other.
+    /** @type {Map<string, string>} */
+    const equipRefByUuid = new Map();
+    function rememberEquipRefs(/** @type {any} */ recs) {
+      for (const r of (recs && recs.model) || []) if (r.uuid) equipRefByUuid.set(r.uuid, idOf(r));
+    }
+
+    async function equipIds(/** @type {any} */ unit) {
       const ids = [];
       if (unit) {
         if (unit.id) ids.push(unit.id);
         for (const t of unit.terminals || []) ids.push(t.id);
       }
-      return ids;
+      if (ids.some((/** @type {string} */ id) => !equipRefByUuid.has(id))) {
+        try { rememberEquipRefs(await g.NfftModelSource.loadRecords(o.api.queryAll, idOf)); } catch { /* fall back to the ids as given */ }
+      }
+      return ids.map((/** @type {string} */ id) => equipRefByUuid.get(id) || id);
     }
 
     async function build(/** @type {any} */ model) {
@@ -238,15 +252,9 @@
         scene = null;
         return;
       }
-      const theme = D.themeName ? D.themeName() : (document.documentElement.getAttribute('data-theme') || 'dark');
-      const reduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const mod = await import(/** @type {string} */ ('./graphic-scene.js'));
-      scene = mod.createGraphicScene($('graphicStage'), current.layout, {
+      scene = g.NfftSchematic.createGraphic($('graphicStage'), current.layout, {
         pressureColor: T.pressureColor,
         staticLimitPa: STATIC_LIMIT_PA,
-        preserveDrawingBuffer: true,
-        theme,
-        reducedMotion: reduced,
       });
       scene.update(frameNow(), marksNow());
     }
@@ -320,7 +328,7 @@
       const pts = S.points(current.unit);
       const rows = pts.map((/** @type {any} */ p) => {
         const raw = current.values[p.id];
-        const v = raw && typeof raw === 'object' ? raw.value : raw;
+        const v = T.unwrap(raw);
         return D.el('tr', {},
           D.el('td', { text: p.part_label || p.part }), D.el('td', { text: p.label }), D.el('td', { class: 'mono', text: p.role || 'unbound' }),
           D.el('td', { class: 'mono', text: v === undefined || v === null ? '—' : String(v) }),

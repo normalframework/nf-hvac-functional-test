@@ -503,8 +503,8 @@ hooks/lib/
   nf/            client.js (REST), types
 schema/site-config.schema.json
 static/          operator page; pure modules shared with hooks and tests (rrule, timetable, trigger, stateview,
-                 touchmap); functional test graphic (s223, haystack-bind, tags-223p, model-source, graphic, graphic-scene, graphic-view)
-static/vendor/   echarts, oxigraph 0.5.13, three 0.170.0, open-fdd (model.js, paging.js, unmodified)
+                 touchmap); functional test graphic (s223, haystack-bind, tags-223p, model-source, graphic, schematic, graphic-view); operating point tab (oppoint-math, oppoint-model, oppoint-view, schematic)
+static/vendor/   echarts, oxigraph 0.5.13, open-fdd (model.js, paging.js, unmodified)
 tests/           *.test.mjs: unit, integration with fake NF, safety invariants
 tests/fixtures/  fake NF and BACnet backend (section 9), RDF fixtures, Open-FDD rdf hook (contract tests)
 types/           page globals for tsc

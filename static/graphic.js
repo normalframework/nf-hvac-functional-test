@@ -679,6 +679,18 @@
   }
 
   /**
+   * A latest value without its wrappers: the page's { value, ts } entry, and NF's own { ts, double | float | integer | boolean }.
+   * @param {any} v
+   */
+  function unwrap(v) {
+    for (let i = 0; i < 3 && v && typeof v === 'object' && !Array.isArray(v); i += 1) {
+      const k = ['value', 'double', 'float', 'integer', 'int', 'uint', 'boolean', 'bool'].find((key) => key in v);
+      v = k ? v[k] : null;
+    }
+    return v;
+  }
+
+  /**
    * Build a scene frame from live (or demo) point values. Missing readings stay null and flow animation stops.
    * @param {any} unit
    * @param {(unit: any) => any[]} pointsFn
@@ -686,7 +698,7 @@
    */
   function liveFrame(unit, pointsFn, values) {
     const num = (/** @type {any} */ v) => {
-      if (v && typeof v === 'object' && !Array.isArray(v)) v = v.value;
+      v = unwrap(v);
       if (v === true || v === 'true') return 1;
       if (v === false || v === 'false') return 0;
       if (v === undefined || v === null || v === '') return null;
@@ -770,5 +782,5 @@
     return [0.93, 0.3, 0.27];
   }
 
-  return { INPUTS, FEEDBACK, ENV, createSim, strokePlan, runStroke, diagnose, parseFault, flowCoefficient, bind, layout, liveFrame, pressureColor };
+  return { INPUTS, FEEDBACK, ENV, createSim, strokePlan, runStroke, diagnose, parseFault, flowCoefficient, bind, layout, liveFrame, unwrap, pressureColor };
 });

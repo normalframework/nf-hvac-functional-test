@@ -38,6 +38,10 @@ Creates are batched (8 per run). After that, present-value patches and Haystack 
 Haystack upserts include a `SITE` record (`nfft-sim-site`), `EQUIPMENT` records with `airRef` / `feeds` / `isFedBy`, and point tags with `siteRef` and `equipRef`. Every upsert row includes a uuid: NF 3.10 requires one on `POST /api/v1/point/points`. Points use the uuid NF assigned at create when `/api/v1/bacnet/local` has a valid one for that exact `nfft-sim.*` name; site, equipment, and any still-unlisted point use a stable UUID v5 of the id. Foreign names, including Open-FDD weather AVs, are never tagged with a uuid.
 
 
+## Operating point extras
+
+For the Operating point tab the catalog also carries (code-defined in `hooks/lib/sim_opoint.js`, so the demo fixture is unchanged): `chw-pump-1` with speed, flow, loop DP, DP setpoint, kW and run points; `hw-pump-1` with the same set; AHU-1 with fan speed feedback, static setpoint, supply airflow and fan kW; nameplate attributes (`designFlow`, `designHead` or `designPressure`, `designPower`) on those; and two deliberately incomplete items, `chw-pump-2` (setpoint, kW and run only, no nameplate) and AHU-2 (no new points), which demo the "Missing data" text. Readings follow the valve demand and the fan speed on every tick. All points are `nfft-sim.` objects like the rest.
+
 ## Enabling on a bench station
 
 1. Install this app. Leave `enableSimulator` false and `simulatorConfirm` empty. Confirm the Open-FDD app (if present) is unchanged and the functional-test trigger is `disabled` or `dry_run`.

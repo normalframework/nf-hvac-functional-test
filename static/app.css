@@ -180,15 +180,39 @@ pre.rrule { margin: 8px 0 0; background: #0a0f1e; border: 1px solid var(--line);
 .graphic-source .pill.bad { background: var(--hot); color: #fff; }
 .graphic-source .warn { color: var(--warm); width: 100%; }
 .graphic-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; }
-.graphic-stage { position: relative; height: 560px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b1020; }
-.graphic-stage canvas { display: block; }
-.graphic-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.graphic-tag { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 11px; color: #e6ebf5; background: rgba(18, 26, 48, .82);
-  border: 1px solid #24304f; border-radius: 6px; padding: 2px 6px; }
-.graphic-tag.unit { font-size: 13px; font-weight: 650; border-color: #4cc9f0; }
-.graphic-tag.terminal { font-weight: 600; }
-.graphic-tag.read { color: #8a96b3; font-variant-numeric: tabular-nums; }
-.graphic-tag.zone { color: #c9d2e8; }
+.graphic-stage { position: relative; border-radius: 12px; overflow: auto; border: 1px solid var(--line); background: var(--panel2); padding: 6px; }
+.graphic-stage .sg-svg { display: block; max-width: 100%; height: auto; }
+/* Flat 2D schematic (schematic.js), shared with the Operating point panels. */
+.sg-t { fill: var(--text); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.sg-name { font-weight: 600; }
+.sg-sm { font-size: 9px; }
+.sg-title { font-size: 13px; font-weight: 650; }
+.sg-muted { fill: var(--muted); }
+.sg-casing { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 6 4; opacity: .7; }
+.sg-box { fill: var(--panel); stroke: var(--line); stroke-width: 1.4; }
+.sg-box.amber { stroke: #ffb703; stroke-width: 3; }
+.sg-box.red { stroke: var(--hot); stroke-width: 3; }
+.sg-glyph { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.sg-cooling-coil .sg-box { stroke: #2a6fdb; }
+.sg-heating-coil .sg-box { stroke: #c45c26; }
+.sg-fan .sg-box { stroke: var(--accent); }
+.sg-boiler .sg-box { stroke: #c45c26; }
+.sg-chiller .sg-box { stroke: #2a6fdb; }
+.sg-filter .sg-box { stroke-dasharray: 4 3; }
+.sg-duct { stroke: var(--muted); stroke-width: 8; opacity: .55; stroke-linecap: round; stroke-linejoin: round; }
+.sg-duct-bus { stroke-width: 5; }
+.sg-duct-drop { stroke-width: 4; }
+.sg-pipe { stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.sg-hw { stroke: #c45c26; }
+.sg-chw { stroke: #2a6fdb; }
+.sg-badge-bg { fill: var(--tag-bg); stroke: var(--line); stroke-width: .8; }
+.sg-badge-t { fill: var(--tag-text); font-weight: 600; }
+.sg-badge.na .sg-badge-bg { fill: var(--panel2); }
+.sg-badge.na .sg-badge-t { fill: var(--muted); font-weight: 400; }
+.sg-valve { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
+.sg-valve.open { fill: var(--good); stroke: var(--good); }
+.sg-track { fill: var(--panel2); stroke: var(--line); stroke-width: .8; }
+.sg-fill { fill: var(--accent); opacity: .8; }
 .graphic-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .graphic-controls { display: grid; gap: 8px; max-height: 430px; overflow: auto; padding-right: 4px; }
 .graphic-slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 12px; }
@@ -237,3 +261,40 @@ pre.rrule { margin: 8px 0 0; background: #0a0f1e; border: 1px solid var(--line);
 
 /* Stagger-minutes input: a class, not an inline style (the page CSP is style-src 'self'). */
 .stagger-input { width: 5rem; }
+
+/* Operating point tab: curve chart beside a model-driven schematic, readouts, fixed-speed comparison. */
+.op-h3 { margin: 18px 0 8px; font-size: 14px; font-weight: 600; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.op-card { margin-bottom: 16px; }
+.op-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.op-chart { height: 340px; }
+.op-schematic { min-width: 0; }
+.op-svg { width: 100%; height: auto; max-height: 340px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; }
+.op-pipe { stroke-width: 4; fill: none; stroke-linecap: round; }
+.op-chw { stroke: #2a6fdb; }
+.op-hw { stroke: #c45c26; }
+.op-return { opacity: 0.55; }
+.op-duct { stroke: var(--muted); stroke-width: 10; opacity: 0.5; stroke-linecap: round; }
+.op-duct-thin { stroke-width: 3; }
+.op-wire { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
+.op-node { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
+.op-sensor { stroke: var(--warm); }
+.op-box { fill: var(--panel); stroke: var(--line); stroke-width: 1.4; }
+.op-pump-arrow { fill: var(--accent); }
+.op-valve { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
+.op-valve.open { fill: var(--good); stroke: var(--good); }
+.op-damper-fill { fill: var(--accent); opacity: 0.75; }
+.op-missing { margin: 4px 0 10px; padding: 6px 10px; border: 1px dashed var(--warm); border-radius: 8px; color: var(--warm); font-size: 13px; }
+.op-readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 6px; }
+.op-cell { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.op-cell-name { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .7px; }
+.op-cell-val { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.op-cell-val small { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.op-cell-sub { color: var(--muted); font-size: 11px; min-height: 14px; }
+.op-cell-src { color: var(--muted); font-size: 11px; font-style: italic; }
+.op-cell-src.ok { color: var(--good); font-style: normal; }
+.op-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.op-table th, .op-table td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--cell-line); }
+.op-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pill.op-warn { background: var(--warm); color: #04111d; }
+@media (max-width: 900px) { .op-grid { grid-template-columns: minmax(0, 1fr); } }
+.op-card .pill.ok, #opointStatus .pill.ok { background: var(--good); color: #04111d; }

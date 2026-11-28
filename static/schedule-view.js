@@ -297,7 +297,7 @@
                 step: '1',
                 value: String(draft.stagger_minutes || 0),
                 onchange: (/** @type {any} */ e) => set({ stagger_minutes: Math.max(0, Number(e.target.value) || 0) }),
-                style: 'width: 5rem',
+                class: 'stagger-input',
               }),
               ' minutes (0 = together)')),
           d.el('p', { class: 'sub', text: `${hint} ${staggerHelp}` })));

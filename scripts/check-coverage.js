@@ -61,7 +61,6 @@ const WHEN_PRESENT = [
   'hooks/lib/runner.js',
   'hooks/lib/interlocks.js',
   'hooks/lib/writers/nf_command.js',
-  'hooks/lib/writers/bacnet_direct.js',
   'hooks/lib/writers/dry_run.js',
   'hooks/lib/writers/verify.js',
   'hooks/lib/writers/release.js',

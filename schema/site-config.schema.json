@@ -48,7 +48,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "backend": { "enum": ["nf_command", "bacnet_direct"] },
+        "backend": { "enum": ["nf_command"] },
         "bacnet_priority": { "type": "integer", "minimum": 3, "maximum": 16 },
         "command_lease_s": { "type": "integer", "minimum": 30, "maximum": 86400 },
         "keepalive_s": { "type": "integer", "minimum": 5, "maximum": 3600 },

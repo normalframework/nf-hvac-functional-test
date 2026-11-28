@@ -1,0 +1,26 @@
+{
+ "id": "point_query__by_uuid_unknown",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/point/query",
+  "body": {
+   "layer": "default",
+   "pageSize": 5,
+   "structuredQuery": {
+    "field": {
+     "property": "uuid",
+     "text": "00000000-0000-0000-0000-000000000000"
+    }
+   }
+  }
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+   "points": [],
+   "totalCount": "0",
+   "nextPageToken": ""
+  }
+ }
+}

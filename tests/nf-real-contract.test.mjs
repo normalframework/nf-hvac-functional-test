@@ -9,7 +9,7 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createFake, MOCK_ONLY_ROUTES } = require('./fixtures/fake/server');
+const { createFake, MOCK_ONLY_ROUTES, REMOVED_ROUTES } = require('./fixtures/fake/server');
 const { VirtualClock } = require('./fixtures/fake/clock');
 const { NfClient, NfError, errorText } = require('../hooks/lib/nf/client');
 const { shapeProblems } = require('./fixtures/nf-shape');
@@ -166,7 +166,7 @@ test('point/query: paging, filters, unknown layer and field handling match NF', 
     assert.equal(withPage.json.points.length, 1);
     assert.equal(withPage.json.totalCount, String(total));
     assert.equal(withPage.json.nextPageToken, '');
-    assert.deepEqual(shapeProblems(withPage.json.points[0], fx('point_query__model_layer_page_a').response.body.points[0], { subset: true }), []);
+    assert.deepEqual(shapeProblems(withPage.json.points[0], fx('point_query__bacnet_backed_point_driver_layer').response.body.points[0], { subset: true, free: ['attrs', 'args', 'stats', 'hplDriver'] }), []);
 
     const noSize = await send(fake, 'POST', '/api/v1/point/query', { layer: LAYER });
     assert.equal(noSize.json.points.length, fx('point_query__no_page_size').response.body.points.length);
@@ -231,22 +231,121 @@ test('addData sends the NF wire body: points, values, real', async () => {
   assert.deepEqual(JSON.parse(seen[0].init.body), { points: [{ uuid: ZERO, values: [{ ts: '2026-01-01T00:00:00Z', real: 3 }] }] });
 });
 
-test('mock-only routes: each is one real NF answers 405, and the list is complete', async () => {
+test('routes real NF answers 405 are 405 in the fake too, and the mock-only list is what is left', async () => {
   const recordedAbsent = {
     'POST /api/v2/bacnet/read': 'routes__v2_bacnet_read',
     'POST /api/v2/bacnet/write': 'routes__v2_bacnet_write_post',
     'POST /api/v1/point/upsert': 'routes__v1_point_upsert_post',
+    'POST /api/v1/data': 'routes__v1_data_post',
   };
-  for (const route of MOCK_ONLY_ROUTES) {
-    const id = recordedAbsent[route];
-    if (!id) continue; // /api/v2/command/clear was never probed; it stays flagged as unverified
-    assert.equal(fx(id).response.status, 405, `${route} is not an NF route`);
-    assert.equal(fx(id).response.contentType, 'text/html');
-  }
-  assert.equal(fx('routes__v1_data_post').response.status, 405);
+  assert.deepEqual([...REMOVED_ROUTES].sort(), Object.keys(recordedAbsent).sort());
   await withFake(async ({ fake }) => {
-    // The fake no longer serves the removed legacy history route.
-    const data = await send(fake, 'POST', '/api/v1/data', { batches: [] });
-    assert.equal(data.status, 405);
+    for (const route of REMOVED_ROUTES) {
+      const recording = fx(recordedAbsent[route]);
+      assert.equal(recording.response.status, 405, `${route} is not an NF route`);
+      const [method, routePath] = route.split(' ');
+      const got = await send(fake, method, routePath, {});
+      assert.deepEqual([got.status, got.type], [405, 'text/html'], route);
+    }
   });
+  assert.deepEqual([...MOCK_ONLY_ROUTES], ['POST /api/v2/command/clear']);
+});
+
+test('point lookup by uuid is structuredQuery.field uuid, in the fake and in the client', async () => {
+  await withFake(async ({ fake, client }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM, supply_air_temperature: '00000000-0000-4000-8000-0000000000a2' } });
+    const request = fx('point_query__by_uuid_driver_layer').request.body;
+    const got = await send(fake, 'POST', '/api/v1/point/query', { ...request, layer: LAYER, structuredQuery: { field: { property: 'uuid', text: SIM } } });
+    assert.equal(got.json.totalCount, '1');
+    assert.equal(got.json.points[0].uuid, SIM);
+    assert.deepEqual(shapeProblems(got.json, fx('point_query__by_uuid_driver_layer').response.body, { subset: true, ignore: ['points'] }), []);
+    const none = await send(fake, 'POST', '/api/v1/point/query', { layer: 'default', pageSize: 5, structuredQuery: { field: { property: 'uuid', text: ZERO } } });
+    assert.deepEqual(none.json, fx('point_query__by_uuid_unknown').response.body);
+    const viaClient = await client.queryPoints({ uuid: SIM, layer: LAYER });
+    assert.deepEqual(viaClient.points.map((point) => point.uuid), [SIM]);
+  });
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push(JSON.parse(init.body));
+    return new Response('{"points":[],"totalCount":"0","nextPageToken":""}', { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const client = new NfClient({ baseUrl: 'http://nf.invalid', fetch: fetchImpl, sleep: async () => {} });
+  await client.queryPoints({ uuid: SIM, layer: 'default' });
+  assert.deepEqual(seen[0], { layer: 'default', pageSize: 500, structuredQuery: { field: { property: 'uuid', text: SIM } } });
+});
+
+test('bacnet/readproperty: the fake answers like NF, by device address, with in-band errors', async () => {
+  await withFake(async ({ fake }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM, supply_air_temperature: '00000000-0000-4000-8000-0000000000a2' } });
+    const listed = await send(fake, 'POST', '/api/v1/point/query', { layer: LAYER, pageSize: 10 });
+    const valve = listed.json.points.find((point) => point.uuid === SIM);
+    const device = valve.hpldata.deviceAddress;
+    const query = (type, instance, property, extra = '') => `/api/v1/bacnet/readproperty?object_id.object_type=${type}&object_id.instance=${instance}&property_id=${property}&array_index=4294967295&device_address.mac=${encodeURIComponent(device.mac)}&device_address.port_id=${device.portId}${extra}`;
+    const object = valve.hpldata.property.objectId;
+
+    const present = await send(fake, 'GET', query(object.objectType, object.instance, 'PROP_PRESENT_VALUE'));
+    assert.equal(present.status, 200);
+    assert.deepEqual(shapeProblems(present.json, fx('bacnet__readproperty_present_value').response.body), []);
+
+    const array = await send(fake, 'GET', query(object.objectType, object.instance, 'PROP_PRIORITY_ARRAY'));
+    assert.equal(array.json.value.array.length, 16);
+
+    const unknownProperty = await send(fake, 'GET', query('OBJECT_ANALOG_INPUT', 1, 'PROP_PRIORITY_ARRAY'));
+    assert.deepEqual(shapeProblems(unknownProperty.json, fx('bacnet__readproperty_unknown_property_in_band_error').response.body), []);
+    assert.equal(unknownProperty.status, 200);
+    const unknownObject = await send(fake, 'GET', query('OBJECT_ANALOG_VALUE', 99999, 'PROP_PRESENT_VALUE'));
+    assert.deepEqual(shapeProblems(unknownObject.json, fx('bacnet__readproperty_unknown_object_in_band_error').response.body), []);
+
+    const byDeviceId = await send(fake, 'GET', `/api/v1/bacnet/readproperty?object_id.object_type=${object.objectType}&object_id.instance=${object.instance}&property_id=PROP_PRESENT_VALUE&device_address.device_id=1`);
+    expectEmptyFailure(byDeviceId, 'bacnet__readproperty_by_device_id_500');
+    const badName = await send(fake, 'GET', query(object.objectType, object.instance, 'PROP_NOPE_NOT_A_THING').replace('PROP_NOPE_NOT_A_THING', 'nope'));
+    expectEmptyFailure(badName, 'bacnet__readproperty_bad_property_name');
+  });
+});
+
+test('readPriorityArray: finds the address in hpldata, reads PROP_PRIORITY_ARRAY, and is null when it cannot', async () => {
+  await withFake(async ({ fake, client }) => {
+    fake.seedAhu({ points: { cooling_valve_position_command: SIM, supply_air_temperature: '00000000-0000-4000-8000-0000000000a2' } });
+    fake.writeSlot(SIM, 8, 25);
+    const slots = await client.readPriorityArray({ uuid: SIM });
+    assert.equal(slots.length, 16);
+    assert.equal(slots[7], 25);
+    assert.equal(slots[0], null);
+    assert.equal(await client.readPriorityArray({ uuid: '00000000-0000-4000-8000-0000000000a2' }), null, 'no priority array on an input');
+    assert.equal(await client.readPriorityArray({ uuid: ZERO }), null, 'unknown point');
+    fake.points.get(SIM).offline = true;
+    assert.equal(await client.readPriorityArray({ uuid: SIM }), null, 'in-band BACnet failure');
+  });
+  // A point with no routable address (the recorded local object has an empty mac and port 0): no read is attempted.
+  const local = fx('point_query__bacnet_backed_point_driver_layer').response.body;
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(String(url));
+    return new Response(JSON.stringify(local), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const client = new NfClient({ baseUrl: 'http://nf.invalid', fetch: fetchImpl, sleep: async () => {} });
+  assert.equal(await client.readPriorityArray({ uuid: local.points[0].uuid }), null);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /\/api\/v1\/point\/query$/);
+});
+
+test('readBacnetProperty builds the recorded readproperty request', async () => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push({ url: new URL(String(url)), method: init.method });
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const client = new NfClient({ baseUrl: 'http://nf.invalid', fetch: fetchImpl, sleep: async () => {} });
+  await client.readBacnetProperty({ mac: 'wAACCrrA', portId: 1, objectType: 'OBJECT_ANALOG_OUTPUT', instance: 7 }, 'PROP_PRIORITY_ARRAY');
+  const recorded = new URL(`http://x${fx('bacnet__readproperty_present_value').request.path}`);
+  assert.equal(seen[0].method, 'GET');
+  assert.equal(seen[0].url.pathname, recorded.pathname);
+  assert.deepEqual([...seen[0].url.searchParams.keys()].sort(), [...recorded.searchParams.keys()].sort());
+  assert.equal(seen[0].url.searchParams.get('device_address.mac'), 'wAACCrrA');
+  assert.equal(seen[0].url.searchParams.get('array_index'), '4294967295');
+});
+
+test('real NF has a bacnet/writeproperty route; it is recorded as existing and deliberately not used', () => {
+  assert.equal(fx('routes__bacnet_writeproperty_empty_body').response.status, 400);
+  assert.match(fx('routes__bacnet_writeproperty_empty_body').note, /NOT verified/);
 });

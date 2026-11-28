@@ -241,7 +241,7 @@ Stored as the NF app option `siteConfig` (a JSON string; NF app options arrive a
   "version": 1,
   "dry_run": true,                         // default true; see 7.2
   "write": {
-    "backend": "nf_command",               // "nf_command" (default) or "bacnet_direct"
+    "backend": "nf_command",               // only "nf_command"; "bacnet_direct" is refused (D28)
     "bacnet_priority": 8,                  // 3..16; 1 and 2 are always rejected
     "command_lease_s": 300,                // NF command context lifetime
     "keepalive_s": 60,                     // extend the lease at this interval
@@ -399,7 +399,7 @@ Principle: no code path may end a run, crash or restart while a point is still o
 | Layer | Mechanism | Covers |
 | --- | --- | --- |
 | 1 | NF command context with a short lease (`command_lease_s`, default 300 s) extended every `keepalive_s` | App crash, host loss of the app only, hook runtime death, stuck run. NF reverts at expiry. (If NF itself or its link to BACnet is down, expiry cannot occur until it is restored; this is an NF limit and is documented.) |
-| 2 | Write-ahead ledger on disk | Restart recovery, `bacnet_direct` backend, audit |
+| 2 | Write-ahead ledger on disk | Restart recovery, audit |
 | 3 | Engine tick watchdog: `max_tick_gap_s`, `max_comm_failures` | Hung or starved engine; detected on the next tick, which releases |
 | 4 | Hard run cap `max_total_minutes` | Any logic bug that never ends a step |
 | 5 | Interlocks (7.5) | Equipment and comfort limits |
@@ -415,7 +415,7 @@ Principle: no code path may end a run, crash or restart while a point is still o
 ### 7.3 Writes
 
 - Backend `nf_command` (default): each run creates one command context per equipment named `ftest-<run_id>-<equipment_id>` (NF refuses a duplicate name, which also acts as a lock). Writes use `/api/v2/command/write` with a per-write BACnet priority from `write.bacnet_priority` (via the write command options, `BACnetCommandOptions.priority`; verify the JSON path on a lab NF, open question 2). `cancel_on_conflict` is set so a point already written at the same system priority makes the write fail rather than stack. NF reverts the point when the context ends (priority array slot cleared).
-- Backend `bacnet_direct` (fallback for NF versions or sites without the command path): BACnet WriteProperty to `PRESENT_VALUE` at `bacnet_priority`; release is a write of NULL at the same priority. There is no automatic expiry in this mode, so layers 2 to 4 carry the safety load. The UI and manifest mark it `no_auto_expiry`.
+- Backend `bacnet_direct` is disabled (D28). Config validation refuses it with `backend_unsupported`, and a ledger entry that still names it fails release loudly (`release_error: backend_unsupported`, run ends in NEEDS_ATTENTION). NF has `POST /api/v1/bacnet/writeproperty`, but its request shape is unverified and a direct write has no lease to expire.
 - Priority rules: integer 3 to 16, default 8. Priorities 1 and 2 are rejected at config validation and at write time, no override flag. Priority 8 (manual operator) leaves 1 to 7 free for life-safety and critical logic.
 - A write is only sent for a role that is in the plan's write set, has `writable: true`, passed capability detection, and whose value is inside the role's clamp (percent 0 to 100, airflow within configured caps, enum values from config).
 - The supply fan command is not in the default write set. The fan is never commanded off by v0.1 steps.
@@ -426,7 +426,7 @@ Principle: no code path may end a run, crash or restart while a point is still o
 Release is idempotent and verified.
 
 - Triggers: step plan completed, operator ABORT, TIMEOUT, interlock trip, comm loss or tick gap, any unhandled exception in the runner, plugin shutdown signal (best effort), and plugin start (recovery).
-- Procedure: release VAV overrides in batches, then AHU overrides. For `nf_command` this is `CancelCommand` (reverts everything in the context) followed by per-point verification. For `bacnet_direct` it is NULL at our priority.
+- Procedure: release VAV overrides in batches, then AHU overrides. For `nf_command` this is `CancelCommand` (reverts everything in the context) followed by per-point verification.
 - Verification: read `PRIORITY_ARRAY` for each written point. Our slot must be empty (NULL). For points without a priority array, the present value must not equal the overridden value or the prior value is written back (the command service handles this; the direct backend does not support non-commandable points and never writes them).
 - Failures retry with the configured backoff. When retries are exhausted the state is `NEEDS_ATTENTION`: the ledger keeps the entries open, NF variable `ftest_needs_attention` is set to 1 (so a site alarm or Open-FDD can see it), and the UI shows the unreleased points with a manual instruction. The app keeps retrying at a low rate (every 5 min) until released or acknowledged.
 - NF zombie writes (reversions NF could not deliver because a device was offline) are read via the zombie API each tick during RELEASING and reported; they are retried by NF.
@@ -496,7 +496,7 @@ hooks/lib/
   runner.js      effect executor with injected clock, nf, ledger, sampler
   interlocks.js
   ledger.js      write-ahead JSONL ledger
-  writers/       nf_command.js, bacnet_direct.js, dry_run.js
+  writers/       nf_command.js, dry_run.js
   vav/           bas_toggle.js, flush_point.js, airflow_setpoint.js
   sampler.js     shadow sampling and period boost
   manifest.js
@@ -541,7 +541,7 @@ A fake NF HTTP server (Node, in process) with a virtual clock. It implements onl
 - Release on restart: kill the engine during `ahu.recirc` and during `vav.max_cool`; a new engine instance releases from the ledger before doing anything else.
 - Lost ledger: delete the ledger, restart, and find and cancel `ftest-*` command contexts.
 - No keepalive: stop ticking and advance the virtual clock past the lease; the fake NF reverts all points.
-- `bacnet_direct`: release writes NULL at our priority; verify slot empty; verify other slots untouched.
+- `bacnet_direct`: refused by config; a leftover ledger entry fails release without sending anything.
 - Release failure: device offline during release, retry with backoff, `NEEDS_ATTENTION`, then success after the device returns.
 - Partial write failure at write time: the run releases what it wrote and ends `failed`.
 - Operator takeover: another writer writes a lower-numbered slot; the app releases its own writes and stops, and does not write again.

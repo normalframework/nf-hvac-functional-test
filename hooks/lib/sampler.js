@@ -42,8 +42,8 @@ class Sampler {
     const seqPoint = shadowUuid('ftest_run_seq');
     if (!this.prepared) {
       await this.client.upsertPoints([
-        { uuid: stepPoint, layer: 'ftest', type: 'ai', role: 'ftest_step_index', unit: '' },
-        { uuid: seqPoint, layer: 'ftest', type: 'ai', role: 'ftest_run_seq', unit: '' },
+        { uuid: stepPoint, name: 'ftest_step_index', layer: 'ftest', attrs: { role: 'ftest_step_index', kind: 'Number', unit: '' } },
+        { uuid: seqPoint, name: 'ftest_run_seq', layer: 'ftest', attrs: { role: 'ftest_run_seq', kind: 'Number', unit: '' } },
       ]);
       this.prepared = true;
     }

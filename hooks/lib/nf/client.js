@@ -1,5 +1,10 @@
 'use strict';
 
+const { parsePriorityArray } = require('../writers/verify');
+
+/** BACnet array_index meaning the whole array. */
+const BACNET_ARRAY_ALL = 4294967295;
+
 class NfError extends Error {
   /**
    * @param {string} message
@@ -30,7 +35,7 @@ function errorText(error) {
 /**
  * Real NF's query body: `layer`, `pageSize`, `pageOffset`, `pointType`, and
  * `structuredQuery.field {property, text}`. Unknown fields (`uuid`, `equip_ref`, `role`) are
- * ignored by NF, so the legacy `equip_ref` filter is translated and `markers` are matched
+ * ignored by NF, so the legacy `uuid` and `equip_ref` filters are translated and `markers` are matched
  * on the returned attrs.markers.
  * @param {Record<string, any>} query
  */
@@ -38,9 +43,13 @@ function toRealQuery(query) {
   const body = { ...query };
   const markers = Array.isArray(body.markers) ? body.markers.map(String) : [];
   delete body.markers;
-  if (typeof body.equip_ref === 'string' && body.equip_ref) {
+  // NF has no uuid or equipRef body filter; both go through structuredQuery.field.
+  if (typeof body.uuid === 'string' && body.uuid) {
+    body.structuredQuery = { field: { property: 'uuid', text: body.uuid } };
+  } else if (typeof body.equip_ref === 'string' && body.equip_ref) {
     body.structuredQuery = { field: { property: 'equipRef', text: body.equip_ref } };
   }
+  delete body.uuid;
   delete body.equip_ref;
   // NF returns zero points when no page size is given.
   if (body.pageSize === undefined && body.page_size === undefined) body.pageSize = DEFAULT_PAGE_SIZE;
@@ -185,29 +194,63 @@ class NfClient {
   }
 
   /**
+   * BACnet address of a point, from the `hpldata` NF stores on every layer of a driver-backed point.
+   * Real NF has no get-by-uuid route: the point is found with `structuredQuery.field uuid`.
+   * Returns null when the point is unknown or not BACnet-backed with a routable address.
+   * @param {string} uuid
+   * @returns {Promise<{ mac: string, net: number, adr: string, portId: number, objectType: string, instance: number, hasPriorityArray: boolean } | null>}
+   */
+  async resolveBacnetAddress(uuid) {
+    const reply = await this.queryPoints({ layer: 'default', uuid, pageSize: 1 });
+    const point = (reply.points || []).find((item) => item.uuid === uuid);
+    const data = point && point.hpldata;
+    if (!data || !data.deviceAddress || !data.property || !data.property.objectId) return null;
+    const device = data.deviceAddress;
+    if (!device.mac || !(Number(device.portId) > 0)) return null;
+    return {
+      mac: device.mac,
+      net: Number(device.net) || 0,
+      adr: device.adr || '',
+      portId: Number(device.portId),
+      objectType: data.property.objectId.objectType,
+      instance: Number(data.property.objectId.instance),
+      hasPriorityArray: data.hasPriorityArray === true,
+    };
+  }
+
+  /**
+   * `GET /api/v1/bacnet/readproperty`. BACnet-level failures are in-band: a 200 with `{error:{errorClass,errorCode}}`.
+   * @param {{ mac: string, net?: number, adr?: string, portId: number, objectType: string, instance: number }} address
+   * @param {string} property for example PROP_PRIORITY_ARRAY
+   */
+  readBacnetProperty(address, property) {
+    const query = new URLSearchParams({
+      'object_id.object_type': address.objectType,
+      'object_id.instance': String(address.instance),
+      property_id: property,
+      array_index: String(BACNET_ARRAY_ALL),
+      'device_address.mac': address.mac,
+      'device_address.port_id': String(address.portId),
+    });
+    if (address.net) query.set('device_address.net', String(address.net));
+    if (address.adr) query.set('device_address.adr', address.adr);
+    return this.request(`/api/v1/bacnet/readproperty?${query.toString()}`, { method: 'GET' });
+  }
+
+  /**
+   * The 16 priority slots of a BACnet-backed point, unwrapped (a number, boolean, string or null per slot).
+   * Null means unreadable (unknown point, no routable address, no priority array, an in-band BACnet error,
+   * or a reply that is not 16 slots), so callers fail closed.
    * @param {{ uuid: string, layer?: string }} point
+   * @returns {Promise<(number | boolean | string | null)[] | null>}
    */
   async readPriorityArray(point) {
-    const reply = await this.bacnetRead([{ uuid: point.uuid, property: 'PRIORITY_ARRAY' }]);
-    const row = (reply.results || []).find((item) => item.uuid === point.uuid);
-    return row ? row.value : null;
-  }
-
-  /**
-   * @param {{ uuid: string, property?: string }[]} reads
-   */
-  bacnetRead(reads) {
-    return this.request('/api/v2/bacnet/read', { method: 'POST', body: { reads } });
-  }
-
-  /**
-   * @param {{ uuid: string, layer?: string, value: number | boolean | null, priority: number }} spec
-   */
-  bacnetWrite(spec) {
-    return this.request('/api/v2/bacnet/write', {
-      method: 'POST',
-      body: { writes: [spec] },
-    });
+    const address = await this.resolveBacnetAddress(point.uuid);
+    if (!address || !address.hasPriorityArray) return null;
+    const reply = await this.readBacnetProperty(address, 'PROP_PRIORITY_ARRAY');
+    if (!reply || reply.error || !reply.value) return null;
+    const parsed = parsePriorityArray(reply.value.array);
+    return parsed === 'unreadable' ? null : parsed;
   }
 
   /**

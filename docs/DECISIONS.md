@@ -90,7 +90,7 @@ Update: Oxigraph 0.5.13 is now vendored at `static/vendor/oxigraph/` (the same f
 
 ## D16. Assumed NF routes
 
-Point query, point upsert, and AddData are `POST /api/v1/point/query`, `/api/v1/point/upsert`, and `/api/v1/data`. Direct BACnet is `POST /api/v2/bacnet/read` and `/api/v2/bacnet/write`. Command routes follow the command service under `/api/v2/command`. None of the point or BACnet paths were verified on a running NF (section 11, questions 2 and 6). `cancel_on_conflict` fails the new write and leaves the existing command running. The fake listens on `127.0.0.1` only and is not part of the installed app.
+Superseded by D28: point query, point write and AddData are `POST /api/v1/point/query`, `/api/v1/point/points` and `/api/v1/points/data`; `/api/v1/point/upsert`, `/api/v1/data` and `/api/v2/bacnet/*` do not exist on NF 3.10. Command routes follow the command service under `/api/v2/command`. `cancel_on_conflict` fails the new write and leaves the existing command running. The fake listens on `127.0.0.1` only and is not part of the installed app.
 
 ## D17. Release verification
 
@@ -137,3 +137,11 @@ NF tags are the source of truth. When the Open-FDD app answers, the graphic read
 
 The `sim` hook exists so a bench station can show the functional test graphic on fake AHU / VAV / reheat data. It defaults to a no-op. Creating local objects requires `enableSimulator` and the exact phrase `CREATE_LOCAL_SIM`. Creates go through `POST /api/v1/bacnet/local` with no uuid, instance numbers start at 8000 and skip anything already in use, and an instance whose name this hook did not choose is never overwritten. The hook does not arm the trigger and does not write to Open-FDD or to real BACnet devices.
 
+## D28. Real NF routes, from recordings
+
+`tests/fixtures/nf-real/` holds replies recorded from NF 3.10.11 and the fake follows them. Consequences:
+
+- A priority array is read with `GET /api/v1/bacnet/readproperty` (`PROP_PRIORITY_ARRAY`, `array_index` 4294967295) using the device address in the point's `hpldata` (`deviceAddress.mac`, `portId`, and `property.objectId`). NF has no get-by-uuid route, so the point is found with `structuredQuery.field {property: "uuid"}` on the `default` layer. A point with no routable address, no priority array, an in-band BACnet error or a reply that is not 16 slots reads as unreadable, and every caller already fails closed on unreadable.
+- Point lookups and the `equip_ref` binding use `structuredQuery.field`; NF ignores body filters named `uuid`, `uuids` and `equipRef`, and returns no rows without a `pageSize`.
+- `bacnet_direct` is disabled. The old `/api/v2/bacnet/write` is not an NF route. `POST /api/v1/bacnet/writeproperty` exists, but its request shape was never exercised, and a direct write has no lease to expire, so it is not wired in. Use `nf_command`.
+- The fake still serves `/api/v2/command/clear` (never probed) and the success rows of command read and write (no driver on the recording instance); `MOCK_ONLY_ROUTES` lists them.

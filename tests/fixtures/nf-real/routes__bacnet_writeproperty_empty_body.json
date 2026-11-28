@@ -1,0 +1,16 @@
+{
+ "id": "routes__bacnet_writeproperty_empty_body",
+ "request": {
+  "method": "POST",
+  "path": "/api/v1/bacnet/writeproperty",
+  "body": {}
+ },
+ "response": {
+  "status": 400,
+  "contentType": "application/grpc",
+  "body": {
+   "$kind": "empty"
+  }
+ },
+ "note": "Existence probe only, with an empty body (nothing can be written). The route exists; its request shape and effect are NOT verified."
+}

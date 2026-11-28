@@ -13,11 +13,18 @@ const RECORDED = path.join(__dirname, '..', 'nf-real');
 const GENERIC_ERROR = 'type.googleapis.com/normalgw.hpl.v2.GenericError';
 /** Routes the fake serves that real NF 3.10 does not have (recorded: 405 html). Mock-only. */
 const MOCK_ONLY_ROUTES = Object.freeze([
+  'POST /api/v2/command/clear',
+]);
+/** Routes the fake used to serve that real NF answers 405 (recorded); they are 405 here too. */
+const REMOVED_ROUTES = Object.freeze([
   'POST /api/v2/bacnet/read',
   'POST /api/v2/bacnet/write',
   'POST /api/v1/point/upsert',
-  'POST /api/v2/command/clear',
+  'POST /api/v1/data',
 ]);
+const BACNET_ARRAY_ALL = 4294967295;
+const FAKE_MAC = 'wAACCrrA'; // 192.0.2.10:47808
+const OBJECT_TYPES = { ai: 'OBJECT_ANALOG_INPUT', ao: 'OBJECT_ANALOG_OUTPUT', bi: 'OBJECT_BINARY_INPUT', bo: 'OBJECT_BINARY_OUTPUT', mv: 'OBJECT_MULTI_STATE_VALUE' };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HTML_SHELL = '<!doctype html><html><head><title>Normal Framework</title></head><body><div id="root"></div></body></html>';
 
@@ -152,10 +159,9 @@ function createFake(options = {}) {
       if (commandMatch && req.method === 'POST') return send(res, 200, extendCommand(Number(commandMatch[1]), body));
       if (commandMatch && req.method === 'DELETE') return send(res, 200, cancelCommand(Number(commandMatch[1])));
       if (req.method === 'POST' && path === '/api/v1/point/query') return send(res, 200, queryPoints(body));
-      if (req.method === 'POST' && (path === '/api/v1/point/points' || path === '/api/v1/point/upsert')) return send(res, 200, upsertPoints(body));
+      if (req.method === 'POST' && path === '/api/v1/point/points') return send(res, 200, upsertPoints(body));
       if (req.method === 'POST' && path === '/api/v1/points/data') return send(res, 200, addData(body));
-      if (req.method === 'POST' && path === '/api/v2/bacnet/read') return send(res, 200, bacnetRead(body));
-      if (req.method === 'POST' && path === '/api/v2/bacnet/write') return send(res, 200, bacnetWrite(body));
+      if (req.method === 'GET' && path === '/api/v1/bacnet/readproperty') return readProperty(url, res);
       if (req.method === 'GET' && path === '/api/v1/platform/env') return send(res, 200, environment());
       // Real NF serves its HTML app shell for unknown GET routes and answers 405 for other methods.
       if (req.method === 'GET') return sendHtml(res, 200);
@@ -338,7 +344,10 @@ function createFake(options = {}) {
     const field = body.structuredQuery && body.structuredQuery.field;
     const list = [...points.values()].filter((object) => {
       if (layer !== 'default' && object.layer !== layer) return false;
-      if (field && String((object.attrs || {})[field.property] ?? '') !== String(field.text)) return false;
+      if (field) {
+        const have = field.property === 'uuid' ? object.uuid : (object.attrs || {})[field.property];
+        if (String(have ?? '') !== String(field.text)) return false;
+      }
       return true;
     });
     const size = body.pageSize !== undefined ? Number(body.pageSize) : Number(body.page_size || 0);
@@ -346,7 +355,7 @@ function createFake(options = {}) {
     if (!Number.isInteger(size) || size < 0) fail(400, 'page_size', 'negative page size', true);
     // NF returns no rows when pageSize is absent (totalCount still counts everything).
     const page = list.slice(offset, offset + size);
-    return { points: page.map(describe), totalCount: String(list.length), nextPageToken: '' };
+    return { points: page.map((object) => describe(object, addressOf(object))), totalCount: String(list.length), nextPageToken: '' };
   }
 
   /**
@@ -366,8 +375,8 @@ function createFake(options = {}) {
             layer: item.layer,
             type: item.type || 'ai',
             relinquish: item.relinquish ?? null,
-            unit: item.unit || '',
-            role: item.role || '',
+            unit: item.unit || (item.attrs && item.attrs.unit) || '',
+            role: item.role || (item.attrs && item.attrs.role) || '',
           });
           points.set(item.uuid, object);
         }
@@ -390,48 +399,61 @@ function createFake(options = {}) {
     return { success: true, taskUuid: '' };
   }
 
-  /**
-   * @param {any} body
-   */
-  function bacnetRead(body) {
-    const results = [];
-    const errors = [];
-    for (const read of body.reads || []) {
-      const object = points.get(read.uuid);
-      if (!object) {
-        errors.push({ uuid: read.uuid, error: 'not_found' });
-        continue;
-      }
-      if (object.offline) {
-        errors.push({ uuid: read.uuid, error: 'offline' });
-        continue;
-      }
-      const property = read.property || 'PRESENT_VALUE';
-      if (property === 'PRIORITY_ARRAY') {
-        results.push({ uuid: read.uuid, property, value: object.priorityArray() });
-        continue;
-      }
-      results.push({ uuid: read.uuid, property, value: object.presentValue() });
-    }
-    return { results, errors };
+  /** @param {DeviceObject} object */
+  function addressOf(object) {
+    const index = [...points.values()].indexOf(object);
+    return {
+      mac: FAKE_MAC,
+      net: 0,
+      adr: '',
+      maxApdu: 1476,
+      deviceId: 1,
+      bbmd: '',
+      portId: 1,
+      objectType: OBJECT_TYPES[object.type] || 'OBJECT_ANALOG_VALUE',
+      instance: index + 1,
+    };
   }
 
   /**
-   * @param {any} body
+   * GET /api/v1/bacnet/readproperty. Real NF answers by device address (mac + port_id); `device_id` alone was an empty 500.
+   * BACnet failures are in-band 200 {error:{errorClass,errorCode}}. The priority array is 16 values in `value.array`
+   * (the value encoding of a slot is mock-only: a populated slot is {real|boolean|enumerated}, an empty one {null}).
+   * @param {URL} url
+   * @param {import('node:http').ServerResponse} res
    */
-  function bacnetWrite(body) {
-    only(body, ['writes']);
-    const results = [];
-    const errors = [];
-    for (const write of body.writes || []) {
-      only(write, ['uuid', 'layer', 'priority', 'value']);
-      const priority = Number(write.priority);
-      const value = write.value === undefined ? null : write.value;
-      const result = applyWrite(write.uuid, priority, value, 0);
-      if (result.error) errors.push({ uuid: write.uuid, error: result.error });
-      else results.push({ uuid: write.uuid, priority, value });
+  function readProperty(url, res) {
+    const q = url.searchParams;
+    const property = q.get('property_id') || '';
+    const type = q.get('object_id.object_type') || '';
+    if (!/^PROP_[A-Z0-9_]+$/.test(property) || !/^OBJECT_[A-Z0-9_]+$/.test(type)) fail(400, 'bad_enum', `${type} ${property}`);
+    const mac = q.get('device_address.mac');
+    const port = Number(q.get('device_address.port_id'));
+    if (!mac || !port) {
+      sendEmpty(res, 500, 'application/grpc');
+      return undefined;
     }
-    return { results, errors };
+    const instance = Number(q.get('object_id.instance'));
+    const object = [...points.values()].find((item) => {
+      const address = addressOf(item);
+      return address.mac === mac && address.portId === port && address.objectType === type && address.instance === instance;
+    });
+    const propertyEcho = { objectId: { objectType: type, instance }, propertyId: property, arrayIndex: Number(q.get('array_index') || BACNET_ARRAY_ALL) };
+    if (!object) return send(res, 200, { error: { errorClass: 'ERROR_CLASS_OBJECT', errorCode: 'ERROR_CODE_UNKNOWN_OBJECT' } });
+    if (object.offline) return send(res, 200, { error: { errorClass: 'ERROR_CLASS_COMMUNICATION', errorCode: 'ERROR_CODE_TIMEOUT' } });
+    if (property === 'PROP_PRESENT_VALUE') {
+      const value = object.presentValue();
+      const wire = typeof value === 'boolean' ? { boolean: value } : { real: Number(value) };
+      return send(res, 200, { property: propertyEcho, value: { ...wire, array: [] } });
+    }
+    if (property === 'PROP_PRIORITY_ARRAY' && object.commandable) {
+      const array = object.priorityArray().map((slot) => {
+        if (slot === null || slot === undefined) return { null: 0 };
+        return typeof slot === 'boolean' ? { boolean: slot } : { real: slot };
+      });
+      return send(res, 200, { property: propertyEcho, value: { array } });
+    }
+    return send(res, 200, { error: { errorClass: 'ERROR_CLASS_PROPERTY', errorCode: 'ERROR_CODE_UNKNOWN_PROPERTY' } });
   }
 
   const server = http.createServer((req, res) => {
@@ -462,6 +484,17 @@ function createFake(options = {}) {
           fault.status = mode.status;
           fault.drop = mode.drop;
         },
+        /**
+         * Another operator writes a priority slot straight on the device (what a field tool does). Not an NF route.
+         * @param {string} uuid
+         * @param {number} priority
+         * @param {number | boolean | null} value null relinquishes
+         */
+        writeSlot(uuid, priority, value) {
+          const object = points.get(uuid);
+          if (!object) throw new Error(`unknown point ${uuid}`);
+          object.writeAt(priority, value);
+        },
         expire,
       });
     });
@@ -470,8 +503,9 @@ function createFake(options = {}) {
 
 /**
  * @param {DeviceObject} object
+ * @param {{ mac: string, net: number, adr: string, maxApdu: number, deviceId: number, bbmd: string, portId: number, objectType: string, instance: number }} address
  */
-function describe(object) {
+function describe(object, address) {
   return {
     uuid: object.uuid,
     name: object.attrs && object.attrs.name ? String(object.attrs.name) : object.uuid,
@@ -479,6 +513,13 @@ function describe(object) {
     version: '',
     attrs: object.attrs || {},
     pointType: 'POINT',
+    hpldata: {
+      '@type': 'type.googleapis.com/normalgw.bacnet.v1.BACnetPoint',
+      uuid: '',
+      deviceAddress: { mac: address.mac, net: address.net, adr: address.adr, maxApdu: address.maxApdu, deviceId: address.deviceId, bbmd: address.bbmd, portId: address.portId },
+      property: { objectId: { objectType: address.objectType, instance: address.instance }, propertyId: 'PROP_PRESENT_VALUE', arrayIndex: BACNET_ARRAY_ALL },
+      hasPriorityArray: object.commandable,
+    },
   };
 }
 
@@ -578,4 +619,4 @@ function readBody(req) {
   });
 }
 
-module.exports = { createFake, MOCK_ONLY_ROUTES, recorded, inband };
+module.exports = { createFake, MOCK_ONLY_ROUTES, REMOVED_ROUTES, recorded, inband };

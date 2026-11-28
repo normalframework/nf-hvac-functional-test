@@ -255,6 +255,13 @@
       else graphic.deactivate();
     }
 
+    let statusDelay = 8000;
+    function nextStatusDelay() {
+      if (demo) return 1000;
+      if (statusOk && active()) return 2000;
+      if (statusOk) return 8000;
+      return Math.min(30000, Math.max(8000, statusDelay * 2));
+    }
     async function pollStatus() {
       try {
         status = await api.status();
@@ -263,11 +270,18 @@
       } catch (err) {
         statusOk = false;
       }
-      if (Date.now() - commandsAt > (demo ? 900 : 5000)) {
+      statusDelay = nextStatusDelay();
+      if (Date.now() - commandsAt > (demo ? 900 : (statusOk ? 15000 : 30000))) {
         commandsAt = Date.now();
         try { commands = await api.commands(); } catch { commands = []; }
       }
       renderBadge();
+    }
+    function loopStatus() {
+      setTimeout(async () => {
+        await pollStatus();
+        loopStatus();
+      }, statusDelay);
     }
 
     /**
@@ -308,7 +322,7 @@
       }
       lastStepChart = '';
       renderTab();
-      setInterval(pollStatus, demo ? 1000 : 2000);
+      loopStatus();
       setInterval(() => { if (tab === 'overview') renderOverview(); else renderBadge(); }, 1000);
       setInterval(() => { if (tab === 'history') renderHistory(); }, 30000);
       if (params.get('play') === '1' && tab === 'equipment') $('playBtn').click();

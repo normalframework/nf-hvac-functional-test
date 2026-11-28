@@ -4,15 +4,29 @@
     "entryPoint": "hooks/tick.js",
     "mode": "MODE_SCHEDULED",
     "schedule": {
-      "rrule": "RRULE:FREQ=SECONDLY;INTERVAL=10"
+      "rrule": "DTSTART:20260101T000000Z\nRRULE:FREQ=SECONDLY;INTERVAL=30"
     },
     "invokeTimeout": "8s",
     "globalVariables": [
-      { "label": "ftest_state" },
-      { "label": "ftest_step_index" },
-      { "label": "ftest_run_seq" },
-      { "label": "ftest_overrides_active" },
-      { "label": "ftest_needs_attention" }
-    ]
+      {
+        "label": "ftest_state"
+      },
+      {
+        "label": "ftest_step_index"
+      },
+      {
+        "label": "ftest_run_seq"
+      },
+      {
+        "label": "ftest_overrides_active"
+      },
+      {
+        "label": "ftest_needs_attention"
+      }
+    ],
+    "runtimeConfig": {
+      "memoryLimit": 64,
+      "maxInstances": 1
+    }
   }
 }

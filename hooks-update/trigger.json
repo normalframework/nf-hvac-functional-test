@@ -4,12 +4,20 @@
     "entryPoint": "hooks/trigger.js",
     "mode": "MODE_SCHEDULED",
     "schedule": {
-      "rrule": "DTSTART:20260101T000000Z\nRRULE:FREQ=MINUTELY;INTERVAL=1"
+      "rrule": "DTSTART:20260101T000040Z\nRRULE:FREQ=MINUTELY;INTERVAL=1"
     },
     "invokeTimeout": "8s",
     "globalVariables": [
-      { "label": "ftest_trigger_mode" },
-      { "label": "ftest_trigger_next" }
-    ]
+      {
+        "label": "ftest_trigger_mode"
+      },
+      {
+        "label": "ftest_trigger_next"
+      }
+    ],
+    "runtimeConfig": {
+      "memoryLimit": 64,
+      "maxInstances": 1
+    }
   }
 }

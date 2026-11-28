@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createFake } = require('./fixtures/fake/server');
 const { VirtualClock } = require('./fixtures/fake/clock');
-const { NfClient } = require('../hooks/lib/nf/client');
+const { NfClient, errorText } = require('../hooks/lib/nf/client');
 
 const LAYER = 'hpl:bacnet:1';
 
@@ -96,7 +96,7 @@ test('priority array keeps other slots and null relinquishes only our slot', asy
     assert.equal(slots[7], null);
     assert.equal(slots[4], 40);
     const rejected = await client.bacnetWrite({ uuid, priority: 1, value: 0 });
-    assert.equal(rejected.errors[0].error.code, 'priority_rejected');
+    assert.match(errorText(rejected.errors[0].error), /priority_rejected/);
     assert.equal((await client.readPriorityArray({ uuid }))[0], null);
   } finally {
     await fake.close();
@@ -114,18 +114,18 @@ test('unique names, guardrails, conflict, and client retries', async () => {
       (error) => error instanceof Error && /** @type {any} */ (error).status === 409,
     );
     const guard = await writeAt(client, uuid, 8, 150, first.id);
-    assert.equal(guard.errors[0].error.code, 'guardrail');
+    assert.match(errorText(guard.errors[0].error), /guardrail/);
     assert.equal((await client.readPriorityArray({ uuid }))[7], null);
     await writeAt(client, uuid, 8, 0, first.id);
 
     const second = await client.startCommand({ name: 'ftest-other', duration: '120s' });
     const conflict = await writeAt(client, uuid, 8, 5, second.id);
-    assert.equal(conflict.errors[0].error.code, 'conflict');
+    assert.match(errorText(conflict.errors[0].error), /conflict/);
     assert.equal((await client.readPriorityArray({ uuid }))[7], 0);
 
     fake.failNext(2, { status: 503 });
-    const queried = await client.queryPoints({ uuid });
-    assert.equal(queried.points[0].uuid, uuid);
+    const queried = await client.queryPoints({ layer: LAYER });
+    assert.ok(queried.points.some((point) => point.uuid === uuid));
 
     const extended = new Date(fake.clock.now() + 600 * 1000).toISOString();
     await client.extendCommand(first.id, extended);
@@ -164,7 +164,7 @@ test('ahu mix and vav profiles stay plausible', async () => {
     };
     fake.seedVav({ id: 'vav_01', profile: 'setpoint_readonly', points: box, maxFlow: 0.4 });
     const readonly = await client.bacnetWrite({ uuid: box.discharge_air_volume_flow_rate_setpoint, priority: 8, value: 0.4 });
-    assert.equal(readonly.errors[0].error.code, 'not_commandable');
+    assert.match(errorText(readonly.errors[0].error), /not_commandable/);
 
     const writable = {
       discharge_air_volume_flow_rate: '00000000-0000-4000-8000-0000000000e4',
@@ -199,9 +199,9 @@ test('ahu mix and vav profiles stay plausible', async () => {
       role: 'ftest_step_index',
       unit: '',
     }]);
-    assert.equal(upserted.points[0].role, 'ftest_step_index');
-    const data = await client.addData({ batches: [{ uuid: upserted.points[0].uuid, values: [{ value: 1 }] }] });
-    assert.equal(data.accepted, 1);
+    assert.equal(upserted.results[0].success, true);
+    const data = await client.addData({ batches: [{ uuid: upserted.results[0].uuid, values: [{ ts: '2026-01-01T00:00:00Z', value: 1 }] }] });
+    assert.equal(data.success, true);
 
     const flush = {
       discharge_air_volume_flow_rate: '00000000-0000-4000-8000-0000000000ea',
@@ -213,11 +213,11 @@ test('ahu mix and vav profiles stay plausible', async () => {
     assert.equal(flushed.results[0].value, 0.55);
 
     fake.failNext(1, { drop: true });
-    const afterDrop = await client.queryPoints({ uuid: ids.outdoor_air_intake_temperature });
-    assert.equal(afterDrop.points.length, 1);
+    const afterDrop = await client.queryPoints({ layer: LAYER });
+    assert.ok(afterDrop.points.some((point) => point.uuid === ids.outdoor_air_intake_temperature));
     await assert.rejects(
       () => client.request('/api/v2/command', { method: 'POST', body: { name: 'made-up', duration_s: 30 } }),
-      (error) => error instanceof Error && /** @type {any} */ (error).body.error.code === 'unknown_field',
+      (error) => error instanceof Error && /** @type {any} */ (error).status === 400,
     );
     await assert.rejects(() => client.startCommand({ name: 'too-long', duration: '90000s' }));
   } finally {

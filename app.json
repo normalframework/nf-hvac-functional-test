@@ -1,6 +1,6 @@
 {
   "id": "nf-hvac-functional-test",
-  "name": "HVAC functional test",
+  "name": "nf-hvac-functional-test",
   "description": "Runs an AHU functional test with an optional VAV max-cooling-airflow step. Dry-run is the default. Writes use a BACnet priority from 3 to 16 (default 8).",
   "runtime": "RUNTIME_NODE_JS",
   "minNfVersion": "3.10.0",

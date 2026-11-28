@@ -120,7 +120,7 @@ function createFake(options = {}) {
       if (commandMatch && req.method === 'POST') return send(res, 200, extendCommand(Number(commandMatch[1]), body));
       if (commandMatch && req.method === 'DELETE') return send(res, 200, cancelCommand(Number(commandMatch[1])));
       if (req.method === 'POST' && path === '/api/v1/point/query') return send(res, 200, queryPoints(body));
-      if (req.method === 'POST' && path === '/api/v1/point/upsert') return send(res, 200, upsertPoints(body));
+      if (req.method === 'POST' && (path === '/api/v1/point/points' || path === '/api/v1/point/upsert')) return send(res, 200, upsertPoints(body));
       if (req.method === 'POST' && path === '/api/v1/data') return send(res, 200, addData(body));
       if (req.method === 'POST' && path === '/api/v2/bacnet/read') return send(res, 200, bacnetRead(body));
       if (req.method === 'POST' && path === '/api/v2/bacnet/write') return send(res, 200, bacnetWrite(body));

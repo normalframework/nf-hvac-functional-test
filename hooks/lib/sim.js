@@ -461,7 +461,7 @@ async function run(sdk, ctx) {
       }
     }
     try {
-      await http.post('/api/v1/point/upsert', { points: batch });
+      await http.post('/api/v1/point/points', { points: batch });
       tagged = batch.length;
     } catch (err) {
       throw new Error(`Upsert tags: ${httpErrorMessage(err)}`);

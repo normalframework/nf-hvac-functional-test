@@ -42,6 +42,10 @@ function mockHttp(state) {
         state.posts.push(body);
         return { data: { ok: true }, status: 200 };
       }
+      if (url === '/api/v1/point/query') {
+        state.queries = (state.queries || []).concat([body]);
+        return { data: { totalCount: String(state.modelCount === undefined ? 0 : state.modelCount) }, status: 200 };
+      }
       if (url === '/api/v1/point/points') {
         state.upserts.push(body);
         return { data: { ok: true }, status: 200 };
@@ -234,7 +238,7 @@ test('run creates new local objects without uuids and skips a missing BACnet ser
   assert.ok(state.upserts.length >= 1);
   const tagged = state.upserts[0].points;
   assert.ok(tagged.every((pt) => Sim.isUuid(pt.uuid)));
-  assert.ok(tagged.filter((pt) => pt.layer !== 'model').every((pt) => String(pt.name).startsWith('nfft-sim.')));
+  assert.ok(tagged.filter((pt) => pt.pointType !== 'SITE' && pt.pointType !== 'EQUIPMENT').every((pt) => String(pt.name).startsWith('nfft-sim.')));
 
 });
 
@@ -287,4 +291,47 @@ test('stableUuid is deterministic RFC 4122 v5 and rejects invalid owned uuids', 
   assert.equal(Sim.isUuid('baee4790-9a46-5235-94e5-a590e91ae2b7'), true);
   assert.equal(Sim.stableUuid('site:nfft-sim-site'), 'baee4790-9a46-5235-94e5-a590e91ae2b7');
   assert.equal(Sim.ownedUuid(listingWith([{ instance: 8000, name: 'nfft-sim.ahu-1.oa-dmp-cmd', uuid: 'not-a-uuid' }]), 'nfft-sim.ahu-1.oa-dmp-cmd'), undefined);
+});
+
+test('tagPayload puts every point row in the model layer, next to the SITE and EQUIPMENT rows', () => {
+  const cat = Sim.catalog();
+  const existing = listing(cat.points.map((p, i) => ({ instance: 8100 + i, name: p.name, objectType: p.objectType })));
+  const planned = Sim.planSync(existing, cat);
+  const tags = Sim.tagPayload(cat, existing, planned, []);
+  const rows = tags.filter((t) => !Sim.isModelRecord(t));
+  assert.ok(rows.length > 100);
+  assert.ok(rows.every((t) => t.layer === 'model'), 'a point row without layer=model is accepted by NF and tags nothing');
+  assert.ok(tags.filter(Sim.isModelRecord).every((t) => t.layer === 'model'));
+  assert.equal(tags.filter((t) => t.pointType === 'SITE').length, 1);
+});
+
+test('tagBatchSize catches up while model records are missing and settles once they all exist', async () => {
+  const expected = 100;
+  const at = (modelCount) => ({ post: async () => ({ data: { totalCount: String(modelCount) }, status: 200 }) });
+  assert.equal(await Sim.tagBatchSize(at(17), expected), Sim.TAG_POINT_BATCH_CATCHUP);
+  assert.equal(await Sim.tagBatchSize(at(99), expected), Sim.TAG_POINT_BATCH_CATCHUP);
+  assert.equal(await Sim.tagBatchSize(at(100), expected), Sim.TAG_POINT_BATCH);
+  assert.equal(await Sim.tagBatchSize(at(150), expected), Sim.TAG_POINT_BATCH);
+  assert.equal(await Sim.tagBatchSize({ post: async () => { throw new Error('boom'); } }, expected), Sim.TAG_POINT_BATCH);
+  assert.equal(await Sim.tagBatchSize({ post: async () => ({ data: {}, status: 200 }) }, expected), Sim.TAG_POINT_BATCH);
+  assert.ok(Sim.TAG_POINT_BATCH_CATCHUP > Sim.TAG_POINT_BATCH);
+});
+
+test('run tags catch-up batches while the model layer is incomplete, then the steady batch', async () => {
+  const armed = { enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE };
+  const cat = Sim.catalog();
+  const expected = 1 + cat.equipment.length + cat.points.length;
+  const state = { modelCount: 17 };
+  const http = mockHttp(state);
+  state.local = listing(cat.points.map((p, i) => ({ instance: 8100 + i, name: p.name, objectType: p.objectType })));
+  await Sim.run({ options: armed, http }, { now: 0 });
+  const rowsOf = (u) => u.points.filter((r) => r.pointType !== 'SITE' && r.pointType !== 'EQUIPMENT');
+  assert.equal(state.queries[0].layer, 'model');
+  assert.equal(rowsOf(state.upserts[0]).length, Sim.TAG_POINT_BATCH_CATCHUP);
+  assert.ok(rowsOf(state.upserts[0]).every((r) => r.layer === 'model'));
+  state.modelCount = expected;
+  await Sim.run({ options: armed, http }, { now: 120000 });
+  assert.equal(rowsOf(state.upserts[1]).length, Sim.TAG_POINT_BATCH);
+  await Sim.run({ options: armed, http }, { now: 240000, tagLimit: 3 });
+  assert.equal(rowsOf(state.upserts[2]).length, 3, 'ctx.tagLimit still wins');
 });

@@ -16,7 +16,7 @@ const vocab = require('../static/roles-223p.js');
 const bind = require('../static/haystack-bind.js');
 const D = require('../static/tags-223p.js');
 const M = require('../static/model-source.js');
-const T = require('../static/twin.js');
+const T = require('../static/graphic.js');
 const paging = require('../static/vendor/open-fdd/paging.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -92,23 +92,32 @@ test('vendored Open-FDD modules are byte-identical to release/5.0.22', () => {
   assert.equal(sha('vendor/roles/openfdd-roles.json'), '43717ebc6187f678e3ee424b5e877f14dcd92e387bfdcedd7cbdb2f9b5eb85c1');
 });
 
-test('NF tags derive the whole twin: 1 air handler, 3 terminals, every point bound to one Open-FDD role', () => {
+test('NF tags derive the whole graphic: two air handlers, unassigned VAV, every point bound to one Open-FDD role', () => {
   const turtle = M.localTurtle(RECORDS, shared);
   const m = build(turtle);
   assert.deepEqual(m.report, { unbound: [], ambiguous: [], duplicates: [] });
-  assert.deepEqual(m.warnings, []);
+  assert.ok(m.warnings.some((w) => /VAV-99|not fed by an air handler|no airRef/i.test(w)));
+  assert.equal(m.ahus.length, 2);
   assert.equal(m.bindings.length, RECORDS.points.length);
   assert.deepEqual(m.properties.unmatched, []);
   assert.deepEqual(m.properties.ambiguous, []);
-  const ahu = m.ahus[0];
+  const ahu = m.ahus.find((a) => a.label === 'AHU-1') || m.ahus[0];
   assert.equal(ahu.label, 'AHU-1');
   assert.deepEqual(ahu.terminals.map((t) => t.label), ['VAV-01 Office', 'VAV-02 Conference', 'VAV-03 Corridor']);
   const onPath = ahu.parts.filter((p) => p.layer != null).sort((a, b) => a.layer - b.layer || a.lane - b.lane).map((p) => p.kind);
   assert.deepEqual(onPath, ['damper', 'damper', 'junction', 'filter', 'cooling_coil', 'heating_coil', 'fan']);
+  const ahu2 = m.ahus.find((a) => a.label === 'AHU-2');
+  assert.equal(ahu2.terminals.length, 8);
+  assert.ok(!(ahu2.parts || []).some((p) => /heating_coil/.test(p.kind)), 'AHU-2 has no heating coil');
+  assert.ok((m.unassigned || []).length >= 1);
+  assert.ok((m.plants || []).some((p) => p.kind === 'boiler' || /boiler/i.test(p.label)));
   // The 223P round trip: the role the tags bound is the role the 223P pattern matches.
-  const pts = S.points(ahu);
-  for (const b of m.bindings) assert.equal(pts.find((p) => p.id === b.point).role, b.role, b.label);
-  // Point ids are NF uuids, so live values bind without a lookup table.
+  const pts = S.allPoints(m);
+  for (const b of m.bindings) {
+    const hit = pts.find((p) => p.id === b.point);
+    assert.ok(hit, b.label);
+    assert.equal(hit.role, b.role, b.label);
+  }
   assert.ok(pts.every((p) => RECORDS.points.some((r) => r.uuid === p.id)));
 });
 

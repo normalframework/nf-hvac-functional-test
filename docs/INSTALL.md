@@ -17,6 +17,8 @@ Point the NF app installer at this directory. The app id is `nf-hvac-functional-
 | `siteConfig` | empty | JSON site policy. Validate it before enabling a run. |
 | `enabled` | true | When false, the 10 second tick and the scheduled trigger do nothing. |
 | `logLevel` | info | `debug`, `info`, `warn`, or `error`. |
+| `enableSimulator` | false | When true **and** `simulatorConfirm` is `CREATE_LOCAL_SIM`, the `sim` hook creates new local BACnet objects for a fake bench system. Leave false on a normal install. |
+| `simulatorConfirm` | empty | Must be exactly `CREATE_LOCAL_SIM` to allow those creates. See [SIMULATOR.md](SIMULATOR.md). |
 
 `dry_run` inside `siteConfig` defaults to true. A live run also needs `confirm_live` on the start action.
 
@@ -31,6 +33,7 @@ Hooks:
 - `tick` runs every 10 seconds (`FREQ=SECONDLY;INTERVAL=10`) with an 8 second invoke timeout.
 - `admin` is on request: `start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`.
 - `trigger` runs every minute (`DTSTART:20260101T000000Z` and `RRULE:FREQ=MINUTELY;INTERVAL=1` on separate lines). It starts a run only when the stored rule is due. See below.
+- `sim` runs every 10 seconds. It is a no-op unless `enableSimulator` and `simulatorConfirm` are set as above. It creates only new local objects (no uuid on `POST /api/v1/bacnet/local`) and does not arm the trigger or touch Open-FDD.
 
 ## Scheduled trigger
 
@@ -48,4 +51,4 @@ The trigger hook reads the blackout schedule with `GET /api/v1/schedules/{uuid}`
 
 The page is served from `static/` at `/api/v1/apps/static/nf-hvac-functional-test/`. It calls the `admin` hook for status, plan preview and trigger edits, `GET /api/v2/command` for active commands, `GET /api/v1/schedules` for the blackout schedule, and the hook run list for history. It writes nothing except the operator actions (abort, retry release, acknowledge, trigger edits). If the hooks cannot be reached it shows STATUS UNKNOWN. `index.html?demo=1` runs the page on fixture data and sends nothing.
 
-The Digital twin tab reads `POST /api/v1/point/query` (model layer, then each site's default layer) and, when the Open-FDD app is installed, starts Open-FDD's read-only `rdf` hook. It needs no configuration and no Open-FDD install. The page CSP allows `'wasm-unsafe-eval'` for Oxigraph's WebAssembly build.
+The Functional test graphic tab reads `POST /api/v1/point/query` (model layer, then each site's default layer) and, when the Open-FDD app is installed, starts Open-FDD's read-only `rdf` hook. It needs no configuration and no Open-FDD install. The page CSP allows `'wasm-unsafe-eval'` for Oxigraph's WebAssembly build.

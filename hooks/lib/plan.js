@@ -2,6 +2,7 @@
 
 const { applyDefaults } = require('./config/defaults');
 const { evaluateWrite } = require('./model/writable');
+const Strategies = require('../../static/ftest-strategies.js');
 
 const REQUIRED_AHU_READS = [
   'discharge_air_temperature',
@@ -52,6 +53,7 @@ function findBinding(config, equipmentId, role) {
  */
 function selectAhu(model, config) {
   const ahus = model.equipment.filter((item) => item.type === 'ahu');
+  if (config && config._system_id) return ahus.find((item) => item.id === config._system_id) || null;
   const requested = (config.equipment || []).find((item) => item.type === 'ahu');
   if (requested) return ahus.find((item) => item.id === requested.id) || null;
   if (ahus.length === 1) return ahus[0];
@@ -109,6 +111,17 @@ function resolveWrites(ahu, config, spec, stepId) {
  * @param {string[]} order
  */
 function strategyForBox(box, ahu, config, order) {
+  const override = Strategies.findOverride(config, box.id);
+  if (override && override.strategy) {
+    const resolved = Strategies.resolveBox(box, config, { ahu });
+    if (resolved.ok) {
+      const alias = resolved.strategy === 'write_airflow_setpoint' ? 'airflow_setpoint'
+        : resolved.strategy === 'toggle_boolean' && resolved.role === 'purge_operating_mode_command' ? 'flush_point'
+        : resolved.strategy;
+      return { strategy: alias, reason: null, resolved };
+    }
+    return { strategy: null, reason: resolved.reason || 'unsupported' };
+  }
   /** @type {{ strategy: string | null, reason: string | null }} */
   let fallback = { strategy: null, reason: 'role_unbound:purge_operating_mode_command' };
   for (const strategy of order) {

@@ -1,0 +1,37 @@
+{
+  "comment": "Example only. Vendor-neutral names. A site file lives in the NF app option, not in this repo. Each VAV names its override strategy; boxes without a strategy are auto-detected from writable roles.",
+  "version": 1,
+  "dry_run": true,
+  "equipment": [
+    {
+      "id": "vav-01",
+      "type": "vav",
+      "vav_override": {
+        "strategy": "write_airflow_setpoint",
+        "comment": "Vendor A: the box exposes a BACnet-writable airflow setpoint."
+      }
+    },
+    {
+      "id": "vav-02",
+      "type": "vav",
+      "vav_override": {
+        "strategy": "toggle_boolean",
+        "role": "purge_operating_mode_command",
+        "on": 1,
+        "off": 0,
+        "comment": "Vendor B: no writable airflow setpoint; a boolean flush / max-flow point drives the box to maximum cooling."
+      }
+    },
+    {
+      "id": "vav-03",
+      "type": "vav",
+      "vav_override": {
+        "strategy": "set_multistate",
+        "role": "maximum_cooling_operating_mode_command",
+        "value": 1,
+        "release": 0,
+        "comment": "Vendor B variant: an enumerated box-mode point. Release writes the release value, then the command is cancelled."
+      }
+    }
+  ]
+}

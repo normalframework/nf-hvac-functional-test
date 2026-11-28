@@ -22,6 +22,10 @@
       armed: null,
       last_occurrence: null,
       history: [],
+      scope: 'all',
+      system_ids: [],
+      stagger_minutes: 0,
+      system_overrides: {},
     };
   }
 
@@ -54,12 +58,16 @@
       armed: mode === 'armed' ? armed : null,
       last_occurrence: typeof raw.last_occurrence === 'number' ? raw.last_occurrence : null,
       history: Array.isArray(raw.history) ? raw.history.slice(-HISTORY_MAX) : [],
+      scope: raw.scope === 'systems' ? 'systems' : 'all',
+      system_ids: Array.isArray(raw.system_ids) ? raw.system_ids.filter((/** @type {any} */ id) => typeof id === 'string' && id) : [],
+      stagger_minutes: Number.isFinite(Number(raw.stagger_minutes)) && Number(raw.stagger_minutes) >= 0 ? Number(raw.stagger_minutes) : 0,
+      system_overrides: raw.system_overrides && typeof raw.system_overrides === 'object' ? raw.system_overrides : {},
     };
   }
 
   /**
    * @param {any} doc
-   * @param {{ op: string, rule?: any, windows?: any, blackout?: any, confirm?: unknown, phrase?: unknown, now: number, by?: string }} change
+   * @param {{ op: string, rule?: any, windows?: any, blackout?: any, scope?: string, system_ids?: any, stagger_minutes?: any, system_overrides?: any, confirm?: unknown, phrase?: unknown, now: number, by?: string }} change
    * @returns {{ ok: true, doc: any, note: string | null } | { ok: false, code: string, errors?: string[] }}
    */
   function apply(doc, change) {
@@ -74,8 +82,12 @@
       }
       if (change.windows !== undefined) nextDoc.windows = T.normalizeWindows(change.windows);
       if (change.blackout !== undefined) nextDoc.blackout = normalize({ blackout: change.blackout }).blackout;
-      const changed = JSON.stringify([nextDoc.rule, nextDoc.windows, nextDoc.blackout])
-        !== JSON.stringify([current.rule, current.windows, current.blackout]);
+      if (change.scope !== undefined) nextDoc.scope = change.scope === 'systems' ? 'systems' : 'all';
+      if (change.system_ids !== undefined) nextDoc.system_ids = Array.isArray(change.system_ids) ? change.system_ids : [];
+      if (change.stagger_minutes !== undefined) nextDoc.stagger_minutes = Number(change.stagger_minutes) || 0;
+      if (change.system_overrides !== undefined) nextDoc.system_overrides = change.system_overrides && typeof change.system_overrides === 'object' ? change.system_overrides : {};
+      const changed = JSON.stringify([nextDoc.rule, nextDoc.windows, nextDoc.blackout, nextDoc.scope, nextDoc.system_ids, nextDoc.stagger_minutes, nextDoc.system_overrides])
+        !== JSON.stringify([current.rule, current.windows, current.blackout, current.scope, current.system_ids, current.stagger_minutes, current.system_overrides]);
       /** @type {string | null} */
       let note = null;
       if (changed && current.mode === 'armed') {

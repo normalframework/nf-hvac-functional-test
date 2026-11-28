@@ -8,11 +8,24 @@
     "name": "ftest",
     "description": "Shadow samples for functional test runs",
     "indexed": true,
-    "components": ["equipment_id", "role", "source_uuid"],
+    "components": [
+      "equipment_id",
+      "role",
+      "source_uuid"
+    ],
     "structuredComponents": [
-      { "name": "equipment_id", "type": "TAG" },
-      { "name": "role", "type": "TAG" },
-      { "name": "source_uuid", "type": "TAG" }
+      {
+        "name": "equipment_id",
+        "type": "TAG"
+      },
+      {
+        "name": "role",
+        "type": "TAG"
+      },
+      {
+        "name": "source_uuid",
+        "type": "TAG"
+      }
     ]
   },
   "auth": {
@@ -32,25 +45,55 @@
       "name": "siteConfig",
       "description": "Site configuration JSON. Point UUIDs and generic equipment ids only. Dry-run defaults to true.",
       "optionType": "TYPE_STRING",
-      "defaultValue": { "string": "" }
+      "defaultValue": {
+        "string": ""
+      }
     },
     {
       "name": "enabled",
       "description": "When false, the engine tick does no work.",
       "optionType": "TYPE_BOOLEAN",
-      "defaultValue": { "boolean": true }
+      "defaultValue": {
+        "boolean": true
+      }
     },
     {
       "name": "logLevel",
       "description": "Log level.",
       "optionType": "TYPE_STRING",
       "choices": [
-        { "string": "debug" },
-        { "string": "info" },
-        { "string": "warn" },
-        { "string": "error" }
+        {
+          "string": "debug"
+        },
+        {
+          "string": "info"
+        },
+        {
+          "string": "warn"
+        },
+        {
+          "string": "error"
+        }
       ],
-      "defaultValue": { "string": "info" }
+      "defaultValue": {
+        "string": "info"
+      }
+    },
+    {
+      "name": "enableSimulator",
+      "description": "When true AND simulatorConfirm is CREATE_LOCAL_SIM, the sim hook creates and updates new local BACnet objects for a fake AHU/VAV/reheat bench. Default false. Does not write to real devices or existing points.",
+      "optionType": "TYPE_BOOLEAN",
+      "defaultValue": {
+        "boolean": false
+      }
+    },
+    {
+      "name": "simulatorConfirm",
+      "description": "Must be exactly CREATE_LOCAL_SIM to allow the simulator to create new local objects. Leave empty on a normal install.",
+      "optionType": "TYPE_STRING",
+      "defaultValue": {
+        "string": ""
+      }
     }
   ]
 }

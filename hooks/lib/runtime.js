@@ -139,7 +139,21 @@ function createFactory(session, sdk) {
       const client = session.client || new NfClient({ baseUrl: nfBaseUrl(sdk), sleep: async () => {} });
       const resolved = await resolveQueryBindings(validated.config, client);
       // A scheduled dry-run rehearsal is dry-run even when the site policy allows live writes.
-      const config = args && args.dry_run === true ? { ...resolved, dry_run: true } : resolved;
+      let config = args && args.dry_run === true ? { ...resolved, dry_run: true } : resolved;
+      if (args && args.system_id) config = { ...config, _system_id: args.system_id };
+      if (args && args.test_id) {
+        const hold = Number(args.hold_minutes);
+        config = {
+          ...config,
+          plan: {
+            ...config.plan,
+            steps: [
+              { step_id: args.test_id, enabled: true, hold_minutes: Number.isFinite(hold) && hold > 0 ? hold : 30, settle_minutes: 5 },
+              { step_id: 'recovery', enabled: true, hold_minutes: 1, settle_minutes: 0 },
+            ],
+          },
+        };
+      }
       const model = modelFromBindings(config);
       const plan = buildPlan(model, config);
       const ledger = new Ledger(path.join(session.root, 'ledger'));

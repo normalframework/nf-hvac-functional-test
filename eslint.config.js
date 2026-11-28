@@ -31,7 +31,7 @@ module.exports = [
     },
   },
   {
-    files: ['static/echarts-global.js', 'static/twin-scene.js'],
+    files: ['static/echarts-global.js', 'static/graphic-scene.js'],
     languageOptions: { sourceType: 'module' },
   },
   {

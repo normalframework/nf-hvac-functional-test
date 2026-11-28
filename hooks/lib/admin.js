@@ -59,6 +59,8 @@ function status(session) {
     step_written: state.stepWritten !== false,
     max_total_ms: state.maxTotalMs || 0,
     pending_start: Boolean(saved && saved.pending_start),
+    system_id: (runner && runner.system_id) || (saved && saved.pending_start && saved.pending_start.system_id) || null,
+    systems: (saved && saved.systems) || (runner && runner.system_id ? [{ id: runner.system_id, active: true, state: state.phase }] : []),
     steps: steps.map((/** @type {any} */ step) => ({
       step_id: step.step_id,
       hold_ms: step.hold_ms || 0,
@@ -193,6 +195,9 @@ async function adminAction(session, action, args = {}) {
         run_id: runId,
         confirm_live: args.confirm_live === true,
         live: args.live === true,
+        test_id: args.test_id || null,
+        system_id: args.system_id || null,
+        hold_minutes: args.hold_minutes || null,
       };
       writeState(session.root, saved);
       session.last = { ok: true, state: 'IDLE', pending: true, writes: 0 };

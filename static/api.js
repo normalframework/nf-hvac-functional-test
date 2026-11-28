@@ -107,7 +107,8 @@
       status: () => admin('status'),
       trigger: (/** @type {string} */ op, /** @type {any} */ payload) => admin('trigger', { ...(payload || {}), op }),
       planPreview: () => admin('plan_preview'),
-      abort: () => admin('abort'),
+      start: (/** @type {any} */ payload) => admin('start', payload || {}),
+      abort: (/** @type {any} */ payload) => admin('abort', payload || {}),
       retryRelease: () => admin('retry_release'),
       acknowledge: () => admin('acknowledge'),
       async commands() {
@@ -119,7 +120,7 @@
         return (body.schedules || []).map((/** @type {any} */ s) => ({ uuid: s.uuid, name: s.name || s.uuid }));
       },
       schedule: (/** @type {string} */ uuid) => api(`/api/v1/schedules/${encodeURIComponent(uuid)}`),
-      // Read-only: the digital twin's model. Open-FDD's rdf hook when that app answers, else NF records.
+      // Read-only: the functional test graphic's model. Open-FDD's rdf hook when that app answers, else NF records.
       openFddHook: (/** @type {string} */ hook, /** @type {Record<string, string>} */ args, /** @type {any} */ o) => callAppHook('open-fdd', hook, args, { signal: o && o.signal, polls: 12 }),
       queryAll,
       async hookRuns(/** @type {string} */ hook) {

@@ -210,6 +210,31 @@
           "type": "array",
           "maxItems": 400,
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }
+        },
+        "vav_override": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy"],
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "write_airflow_setpoint",
+                "toggle_boolean",
+                "set_multistate",
+                "unsupported",
+                "airflow_setpoint",
+                "flush_point",
+                "bas_toggle"
+              ]
+            },
+            "role": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "on": { "description": "Value written to start a toggle_boolean or bas_toggle override." },
+            "off": { "description": "Value written when a toggle_boolean override is released." },
+            "value": { "description": "Value written by set_multistate." },
+            "release": { "description": "Value written when a set_multistate override is released." },
+            "writable": { "type": "boolean" }
+          }
         }
       }
     },

@@ -78,6 +78,34 @@ test('isArmed requires the option and the exact confirm phrase', () => {
   assert.equal(Sim.isArmed({ enableSimulator: true, simulatorConfirm: 'please' }), false);
   assert.equal(Sim.isArmed({ enableSimulator: true, simulatorConfirm: Sim.CONFIRM_PHRASE }), true);
   assert.equal(Sim.isArmed({ enableSimulator: 'true', simulatorConfirm: ' CREATE_LOCAL_SIM ' }), true);
+  assert.equal(Sim.isArmed({
+    enableSimulator: { boolean: true },
+    simulatorConfirm: { string: Sim.CONFIRM_PHRASE },
+  }), true);
+  assert.equal(Sim.isArmed({
+    enableSimulator: { boolean: false },
+    simulatorConfirm: { string: Sim.CONFIRM_PHRASE },
+  }), false);
+  assert.equal(Sim.unwrapOption({ boolean: true }), true);
+  assert.equal(Sim.unwrapOption({ string: 'CREATE_LOCAL_SIM' }), 'CREATE_LOCAL_SIM');
+});
+
+test('onTick reads NF scheduled-hook options from ctx.config', async () => {
+  const state = { existing: [] };
+  const http = mockHttp(state);
+  const disabled = await onTick({ http, config: { enableSimulator: false } });
+  assert.equal(disabled.skipped, 'disabled');
+  assert.equal(state.posts.length, 0);
+  const result = await onTick({
+    http,
+    config: {
+      enableSimulator: { boolean: true },
+      simulatorConfirm: { string: Sim.CONFIRM_PHRASE },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.ok(result.created > 0);
+  assert.equal(state.posts.length, result.created);
 });
 
 test('planSync allocates free instances from 8000 and never reuses a foreign name', () => {
@@ -105,6 +133,41 @@ test('createBody and patchBody never include a uuid', () => {
   const patch = Sim.patchBody({ objectType: 'OBJECT_ANALOG_VALUE', instance: 8001 }, 4);
   assert.equal(JSON.stringify(patch).includes('uuid'), false);
   assert.throws(() => Sim.assertNoUuid({ url: '/api/v1/bacnet/local', body: { uuid: 'nope' } }));
+});
+
+test('createBody includes PROP_UNITS on analog values and omits it on binary values', () => {
+  assert.equal(Sim.bacnetUnits('%'), 98);
+  assert.equal(Sim.bacnetUnits('°C'), 62);
+  assert.equal(Sim.bacnetUnits('Pa'), 53);
+  assert.equal(Sim.bacnetUnits('L/s'), 87);
+  assert.equal(Sim.bacnetUnits(''), 95);
+  const cases = [
+    ['%', 98],
+    ['°C', 62],
+    ['Pa', 53],
+    ['L/s', 87],
+    ['', 95],
+  ];
+  for (const [unit, enumerated] of cases) {
+    const body = Sim.createBody({
+      name: 'nfft-sim.u',
+      objectType: 'OBJECT_ANALOG_VALUE',
+      instance: 8001,
+      dis: 'u',
+      unit,
+    }, 1);
+    const units = body.props.find((p) => p.property === 'PROP_UNITS');
+    assert.ok(units, `missing PROP_UNITS for ${unit || '(none)'}`);
+    assert.equal(units.value.enumerated, enumerated);
+    assert.equal(Object.prototype.hasOwnProperty.call(body, 'uuid'), false);
+  }
+  const bin = Sim.createBody({
+    name: 'nfft-sim.b',
+    objectType: 'OBJECT_BINARY_VALUE',
+    instance: 8002,
+    dis: 'b',
+  }, true);
+  assert.equal(bin.props.some((p) => p.property === 'PROP_UNITS'), false);
 });
 
 test('physics starves VAV-03 and stops flow when the fan is off', () => {
@@ -145,6 +208,10 @@ test('run creates new local objects without uuids and skips a missing BACnet ser
   assert.equal(state.posts.length, 5);
   assert.ok(state.posts.every((b) => !Object.prototype.hasOwnProperty.call(b, 'uuid')));
   assert.ok(state.posts.every((b) => b.objectId.instance >= 8000 && b.objectId.instance !== 1));
+  assert.ok(state.posts.every((b) => b.objectId.objectType !== 'OBJECT_ANALOG_VALUE'
+    || b.props.some((p) => p.property === 'PROP_UNITS' && Number.isFinite(p.value.enumerated))));
+  assert.ok(state.posts.every((b) => b.objectId.objectType !== 'OBJECT_BINARY_VALUE'
+    || !b.props.some((p) => p.property === 'PROP_UNITS')));
   assert.equal(state.patches.length, 0);
   // Second tick against an updated listing patches only our names.
   state.local = listing([

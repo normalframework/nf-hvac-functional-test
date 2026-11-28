@@ -9,7 +9,7 @@
   NF static app page, served from static/ at /api/v1/apps/static/<app-id>/ on the console origin.
   Plain JavaScript, no build step. Strict CSP: no inline scripts or styles.
   Pure modules (UMD) are shared with the hooks and the Node tests. The functional test graphic loads Oxigraph (WebAssembly,
-  hence 'wasm-unsafe-eval'), three.js and Open-FDD's model.js only when its tab opens.
+  hence 'wasm-unsafe-eval') and Open-FDD's model.js only when its tab opens. The graphic is a flat 2D SVG schematic (schematic.js).
   Add ?demo=1 to run the whole page on fixture data with no station.
 -->
 <script src="theme-init.js"></script>
@@ -39,7 +39,11 @@
 <script defer src="ftest.js"></script>
 <script defer src="deficiencies.js"></script>
 <script defer src="graphic.js"></script>
+<script defer src="schematic.js"></script>
 <script defer src="graphic-view.js"></script>
+<script defer src="oppoint-math.js"></script>
+<script defer src="oppoint-model.js"></script>
+<script defer src="oppoint-view.js"></script>
 <script defer src="app.js"></script>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="app.css">
@@ -62,6 +66,7 @@
   <button type="button" data-tab="equipment">What the test touches</button>
   <button type="button" data-tab="history">Run history</button>
   <button type="button" data-tab="graphic">Functional test graphic</button>
+<button type="button" data-tab="opoint">Operating point</button>
 </nav>
 <main>
   <div id="err" role="alert"></div>
@@ -156,7 +161,16 @@
       <div id="hookRuns" class="tablewrap"></div>
     </div>
   </section>
-  <section class="tab" id="tab-graphic">
+  <section class="tab" id="tab-opoint">
+<div class="panel">
+<h2>Operating point <span class="hint">pump and fan curves against the system curve, from the data model · read only</span>
+<button class="btn" type="button" id="opointRefresh">Re-read model</button>
+</h2>
+<div id="opointStatus" class="graphic-source"></div>
+</div>
+<div id="opointPanels" class="op-panels mt"></div>
+</section>
+<section class="tab" id="tab-graphic">
     <div id="systemOverview" class="panel system-overview"></div>
     <div class="panel">
       <h2>Functional test graphic <span class="hint">passive view of live NF values, drawn from the 223P model · writes only happen if you start a test, through the guarded command path (dry-run by default)</span>

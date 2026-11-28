@@ -238,15 +238,9 @@
         scene = null;
         return;
       }
-      const theme = D.themeName ? D.themeName() : (document.documentElement.getAttribute('data-theme') || 'dark');
-      const reduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const mod = await import(/** @type {string} */ ('./graphic-scene.js'));
-      scene = mod.createGraphicScene($('graphicStage'), current.layout, {
+      scene = g.NfftSchematic.createGraphic($('graphicStage'), current.layout, {
         pressureColor: T.pressureColor,
         staticLimitPa: STATIC_LIMIT_PA,
-        preserveDrawingBuffer: true,
-        theme,
-        reducedMotion: reduced,
       });
       scene.update(frameNow(), marksNow());
     }
@@ -320,7 +314,7 @@
       const pts = S.points(current.unit);
       const rows = pts.map((/** @type {any} */ p) => {
         const raw = current.values[p.id];
-        const v = raw && typeof raw === 'object' ? raw.value : raw;
+        const v = T.unwrap(raw);
         return D.el('tr', {},
           D.el('td', { text: p.part_label || p.part }), D.el('td', { text: p.label }), D.el('td', { class: 'mono', text: p.role || 'unbound' }),
           D.el('td', { class: 'mono', text: v === undefined || v === null ? '—' : String(v) }),

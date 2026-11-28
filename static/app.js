@@ -76,6 +76,8 @@
         if (schedule && typeof schedule.setSystems === 'function') schedule.setSystems(list);
       },
     });
+    const opoint = g.NfftOperatingPointView.mount({ api, demo, notify });
+    $('opointRefresh').addEventListener('click', () => opoint.refresh());
     schedule = g.NfftScheduleView.mount({
       api,
       notify,
@@ -253,6 +255,8 @@
       else if (tab === 'schedule') schedule.refresh();
       if (tab === 'graphic') graphic.activate();
       else graphic.deactivate();
+      if (tab === 'opoint') opoint.activate();
+      else opoint.deactivate();
     }
 
     let statusDelay = 8000;

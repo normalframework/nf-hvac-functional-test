@@ -12,6 +12,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const opoint = require('./sim_opoint.js');
 
 const CONFIRM_PHRASE = 'CREATE_LOCAL_SIM';
 const NAME_PREFIX = 'nfft-sim.';
@@ -116,6 +117,12 @@ function bacnetUnits(unit) {
     case 'L-PER-SEC':
     case 'L/S':
       return 87;
+    case 'kPa':
+    case 'KiloPA':
+      return 54;
+    case 'kW':
+    case 'KiloW':
+      return 48;
     default:
       return 95;
   }
@@ -149,10 +156,11 @@ function simId(id) {
 }
 
 /**
- * @param {any} rec demo-nf-records
+ * @param {any} rec demo-nf-records; when given (tests), only that fixture is used and no operating point extras are added
  */
 function catalog(rec) {
   const records = rec || demoRecords();
+  const withExtras = !rec;
   const equipment = (records.model || [])
     .filter((/** @type {any} */ r) => r.pointType !== 'SITE' && (r.attrs || {}).markers)
     .map((/** @type {any} */ r) => {
@@ -171,8 +179,15 @@ function catalog(rec) {
       if (attrs.airRef) out.airRef = simId(attrs.airRef);
       if (attrs.feeds) out.feeds = simId(attrs.feeds);
       if (attrs.isFedBy) out.isFedBy = simId(attrs.isFedBy);
+      if (withExtras && /** @type {any} */ (opoint.EQUIPMENT_ATTRS)[attrs.id]) out.extra = /** @type {any} */ (opoint.EQUIPMENT_ATTRS)[attrs.id];
       return out;
     });
+  if (withExtras) {
+    for (const e of opoint.EXTRA_EQUIPMENT) {
+      const extra = /** @type {any} */ (opoint.EQUIPMENT_ATTRS)[e.id];
+      equipment.push({ id: simId(e.id), dis: e.dis, markers: e.markers, siteRef: SITE_ID, kind: e.kind, ...(extra ? { extra } : {}) });
+    }
+  }
   const site = { id: SITE_ID, dis: 'Functional test bench site', markers: 'site' };
   const points = (records.points || []).map((/** @type {any} */ r) => {
     const attrs = r.attrs || {};
@@ -190,6 +205,14 @@ function catalog(rec) {
       initial: r.latestValue === undefined || r.latestValue === null ? 0 : r.latestValue,
     };
   });
+  if (withExtras) {
+    for (const p of opoint.EXTRA_POINTS) {
+      points.push({
+        name: NAME_PREFIX + p.sourceId, sourceId: p.sourceId, dis: p.dis, markers: p.markers, kind: p.kind, unit: p.unit,
+        equipRef: simId(p.equip), siteRef: SITE_ID, objectType: p.kind === 'Bool' ? 'OBJECT_BINARY_VALUE' : 'OBJECT_ANALOG_VALUE', initial: p.initial,
+      });
+    }
+  }
   return { site, equipment, points };
 }
 
@@ -384,6 +407,7 @@ function stepPhysics(values) {
     const staticPa = Number(next[`${use}.dsp`] ?? (fanOn ? DESIGN_PA : 0));
     boxFlow(id, id === STARVE_ID, fanOn, staticPa);
   }
+  opoint.step(next);
   return next;
 }
 
@@ -562,6 +586,7 @@ function tagPayload(cat, listing, planned, createdThisTick) {
     if (e.airRef) attrs.airRef = e.airRef;
     if (e.feeds) attrs.feeds = e.feeds;
     if (e.isFedBy) attrs.isFedBy = e.isFedBy;
+    if (e.extra) Object.assign(attrs, e.extra);
     out.push({
       uuid: stableUuid(`equip:${e.id}`),
       name: e.dis,

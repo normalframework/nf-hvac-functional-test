@@ -16,7 +16,7 @@
       }
     ],
     "runtimeConfig": {
-      "memoryLimit": 64,
+      "memoryLimit": 96,
       "maxInstances": 1
     }
   }

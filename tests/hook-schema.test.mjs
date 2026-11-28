@@ -29,9 +29,9 @@ test('scheduled hooks are staggered so tick, sim, and trigger cannot overlap', (
   assert.equal(sim.hook.invokeTimeout, '20s');
   assert.match(trigger.hook.schedule.rrule, /DTSTART:20260101T000040Z/);
   assert.match(trigger.hook.schedule.rrule, /FREQ=MINUTELY;INTERVAL=1/);
-  assert.equal(tick.hook.runtimeConfig.memoryLimit, 64);
+  assert.equal(tick.hook.runtimeConfig.memoryLimit, 96);
   assert.equal(sim.hook.runtimeConfig.memoryLimit, 96);
-  assert.equal(trigger.hook.runtimeConfig.memoryLimit, 64);
+  assert.equal(trigger.hook.runtimeConfig.memoryLimit, 96);
   const admin = JSON.parse(fs.readFileSync('hooks-update/admin.json', 'utf8'));
-  assert.equal(admin.hook.runtimeConfig.memoryLimit, 64);
+  assert.equal(admin.hook.runtimeConfig.memoryLimit, 128);
 });

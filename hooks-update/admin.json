@@ -5,7 +5,7 @@
     "mode": "MODE_ON_REQUEST",
     "invokeTimeout": "8s",
     "runtimeConfig": {
-      "memoryLimit": 64,
+      "memoryLimit": 128,
       "maxInstances": 1
     }
   }

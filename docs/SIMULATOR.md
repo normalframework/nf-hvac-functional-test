@@ -9,7 +9,7 @@ It is **off by default**. Installing the app does not create any objects and doe
 - The hook is a no-op unless both are set in the app options:
   - `enableSimulator` = true
   - `simulatorConfirm` = `CREATE_LOCAL_SIM` (exact phrase)
-- It only talks to `GET /api/v1/bacnet/configuration`, `GET|POST|PATCH /api/v1/bacnet/local`, and `POST /api/v1/point/upsert` for tags of objects it owns.
+- It only talks to `GET /api/v1/bacnet/configuration`, `GET|POST|PATCH /api/v1/bacnet/local`, and `POST /api/v1/point/points` for tags of objects it owns.
 - `POST /api/v1/bacnet/local` **never includes a uuid**. NF assigns the point id. Passing an existing point uuid to that API would overwrite the point; the hook refuses a body that has one.
 - Analog creates include `PROP_UNITS` (NF 3.10.9 returns `You must supply a value for property PROPERTY_IDENTIFIER_UNITS` without it). Units follow BACnet engineering-unit enumerations: `%` = 98, `°C` = 62, `Pa` = 53, `L/s` = 87, otherwise 95 (`noUnits`). Binary values do not send `PROP_UNITS`.
 - Scheduled hooks read app options from `ctx.config` (NF passes flat scalars or `{boolean|string}` wrappers there, not `sdk.options`).

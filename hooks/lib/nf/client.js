@@ -46,7 +46,7 @@ class NfClient {
    * @param {any[]} points
    */
   upsertPoints(points) {
-    return this.request('/api/v1/point/upsert', { method: 'POST', body: { points } });
+    return this.request('/api/v1/point/points', { method: 'POST', body: { points } });
   }
 
   /**

@@ -42,7 +42,7 @@ function mockHttp(state) {
         state.posts.push(body);
         return { data: { ok: true }, status: 200 };
       }
-      if (url === '/api/v1/point/upsert') {
+      if (url === '/api/v1/point/points') {
         state.upserts.push(body);
         return { data: { ok: true }, status: 200 };
       }

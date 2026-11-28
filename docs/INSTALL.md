@@ -30,10 +30,10 @@ Deny writes by default. Add one allow rule for this app's API key, and clamp per
 
 Hooks:
 
-- `tick` runs every 10 seconds (`FREQ=SECONDLY;INTERVAL=10`) with an 8 second invoke timeout.
+- `tick` runs every 30 seconds (`DTSTART:20260101T000000Z` and `RRULE:FREQ=SECONDLY;INTERVAL=30`) with an 8 second invoke timeout, so a tick cannot overlap itself.
 - `admin` is on request: `start`, `abort`, `status`, `retry_release`, `acknowledge`, `config validate`, `config discover`.
-- `trigger` runs every minute (`DTSTART:20260101T000000Z` and `RRULE:FREQ=MINUTELY;INTERVAL=1` on separate lines). It starts a run only when the stored rule is due. See below.
-- `sim` runs every 60 seconds (`DTSTART` + `RRULE:FREQ=MINUTELY;INTERVAL=1`) with a 25 second invoke timeout. It is a no-op unless `enableSimulator` and `simulatorConfirm` are set as above. It creates only new local objects (no uuid on `POST /api/v1/bacnet/local`), tags them in batches, and does not arm the trigger or touch Open-FDD.
+- `trigger` runs every minute (`DTSTART:20260101T000040Z` and `RRULE:FREQ=MINUTELY;INTERVAL=1` on separate lines), offset from `tick` and `sim`. It starts a run only when the stored rule is due. See below.
+- `sim` runs every 120 seconds (`DTSTART:20260101T000008Z` and `RRULE:FREQ=MINUTELY;INTERVAL=2`) with a 20 second invoke timeout, starting just after a tick finishes so the two do not overlap. It is a no-op unless `enableSimulator` and `simulatorConfirm` are set as above. It creates only new local objects (no uuid on `POST /api/v1/bacnet/local`), tags them in small rotating batches, and does not arm the trigger or touch Open-FDD.
 
 ## Scheduled trigger
 

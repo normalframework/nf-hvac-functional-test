@@ -4,7 +4,7 @@
     "entryPoint": "hooks/trigger.js",
     "mode": "MODE_SCHEDULED",
     "schedule": {
-      "rrule": "DTSTART:20260101T000000Z\nRRULE:FREQ=MINUTELY;INTERVAL=1"
+      "rrule": "DTSTART:20260101T000040Z\nRRULE:FREQ=MINUTELY;INTERVAL=1"
     },
     "invokeTimeout": "8s",
     "globalVariables": [

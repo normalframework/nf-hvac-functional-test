@@ -5,7 +5,8 @@
  * local BACnet API. Off unless the app option enableSimulator is true and
  * simulatorConfirm is exactly CREATE_LOCAL_SIM. Creates only new local objects
  * (POST /api/v1/bacnet/local never includes a uuid), never overwrites an
- * instance whose name this hook did not choose, and never writes to real devices.
+ * instance whose name this hook did not choose, and never writes to real devices. Present-value and tag updates are
+ * small rotating batches; this hook does not keep an in-memory history.
  */
 
 const crypto = require('node:crypto');
@@ -17,9 +18,9 @@ const NAME_PREFIX = 'nfft-sim.';
 const ID_PREFIX = 'nfft-sim-';
 const SITE_ID = 'nfft-sim-site';
 const INSTANCE_BASE = 8000;
-const CREATE_BATCH = 12;
-const PATCH_BATCH = 40;
-const TAG_POINT_BATCH = 20;
+const CREATE_BATCH = 8;
+const PATCH_BATCH = 15;
+const TAG_POINT_BATCH = 8;
 const STARVE_ID = 'vav-03';
 const STARVE_FACTOR = 0.45;
 const DESIGN_PA = 250;

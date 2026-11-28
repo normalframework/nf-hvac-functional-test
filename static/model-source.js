@@ -10,6 +10,10 @@
  * is rebuilt only when NF tags change, never because the source switched. One model is cached; the Turtle and
  * triples are dropped after the build. Reads only: nothing here writes to NF or to Open-FDD.
  *
+ * NF tags are the source of truth for feed relationships. If the shared Open-FDD graph is used but is missing
+ * AHU→VAV links the tags define, those airRef / feeds / isFedBy relations are merged in (or the tagged model
+ * is preferred when it still has more links).
+ *
  * Browser global NfftModelSource; CommonJS for tests.
  */
 (function (root, factory) {
@@ -156,6 +160,156 @@
     return values;
   }
 
+
+  /**
+   * Normalize an equipment id or label for matching (nfft-sim-ahu-1, AHU-1 → ahu-1).
+   * @param {any} value
+   */
+  function normKey(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/^nfft-sim-/, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  /**
+   * @param {any} node model equipment, or an NF record
+   * @returns {string[]}
+   */
+  function nodeKeys(node) {
+    const a = (node && node.attrs) || {};
+    const iri = String((node && (node.iri || node.id)) || '');
+    const local = iri.split(/[#/]/).pop() || '';
+    const raw = [a.id, a.dis, node && node.id, node && node.label, node && node.name, local];
+    /** @type {string[]} */
+    const out = [];
+    for (const v of raw) {
+      const k = normKey(v);
+      if (k && !out.includes(k)) out.push(k);
+    }
+    return out;
+  }
+
+  /**
+   * @param {any[]} nodes
+   * @param {string[]} want
+   */
+  function findUnique(nodes, want) {
+    if (!nodes || !want || !want.length) return null;
+    const exact = nodes.filter((n) => nodeKeys(n).some((k) => want.includes(k)));
+    if (exact.length === 1) return exact[0];
+    const soft = nodes.filter((n) => nodeKeys(n).some((k) => want.some((t) => t && k && (k === t || k.startsWith(`${t}-`) || t.startsWith(`${k}-`)))));
+    return soft.length === 1 ? soft[0] : null;
+  }
+
+  function listOf(value) {
+    if (value === null || value === undefined || value === '') return [];
+    if (Array.isArray(value)) return value.map((v) => String(v)).filter(Boolean);
+    return String(value).split(/[\s,]+/).filter(Boolean);
+  }
+
+  /** @param {any} model */
+  function servedCount(model) {
+    return ((model && model.ahus) || []).reduce((n, /** @type {any} */ a) => n + ((a.terminals || []).length), 0);
+  }
+
+  /**
+   * Signature of feed attrs on NF equipment records, so a tag change rebuilds a cached Open-FDD snapshot.
+   * @param {{ model?: any[] }} records
+   */
+  function tagFeedSignature(records) {
+    const rows = ((records && records.model) || []).map((r) => {
+      const a = r.attrs || {};
+      return [a.id || '', listOf(a.airRef).join(','), listOf(a.feeds).join(','), listOf(a.isFedBy).join(',')].join('\t');
+    }).filter((s) => /[\t].+/.test(s)).sort();
+    return sha256(rows.join('\n'));
+  }
+
+  /**
+   * Attach terminals to air handlers using NF tag feed relationships (airRef, feeds, isFedBy).
+   * The shared graph is kept; only missing AHU→VAV links the tags define are added.
+   * A terminal with no tag feed stays unassigned.
+   * @param {any} model
+   * @param {{ model?: any[] }} records
+   * @returns {{ model: any, applied: number }}
+   */
+  function applyTagFeeds(model, records) {
+    if (!model || !records) return { model, applied: 0 };
+    const ahus = ((model.ahus) || []).map((/** @type {any} */ a) => ({ ...a, terminals: (a.terminals || []).slice() }));
+    const unassigned = (model.unassigned || []).slice();
+    const other = (model.other || []).slice();
+    const terminals = [];
+    const seen = new Set();
+    const addTerm = (/** @type {any} */ t) => {
+      const k = t && (t.iri || t.id);
+      if (!t || (k && seen.has(k))) return;
+      if (k) seen.add(k);
+      terminals.push(t);
+    };
+    for (const a of ahus) for (const t of a.terminals) addTerm(t);
+    for (const t of unassigned) addTerm(t);
+    for (const n of other) {
+      if (/terminal/i.test(n.kind || '') || /vav/i.test(n.label || n.id || '')) addTerm(n);
+    }
+    const recs = (records.model || []).filter((r) => r && (r.pointType === 'EQUIPMENT' || (r.attrs && (r.attrs.airRef || r.attrs.feeds || r.attrs.isFedBy || /vav|airTerminalUnit|ahu/i.test(String((r.attrs || {}).markers || ''))))));
+    const byId = new Map();
+    for (const r of recs) {
+      const id = (r.attrs && r.attrs.id) || r.name;
+      if (id) byId.set(String(id), r);
+    }
+    /** @type {Map<any, any>} terminal node -> ahu node */
+    const want = new Map();
+    for (const r of recs) {
+      const a = r.attrs || {};
+      const markers = String(a.markers || '');
+      const isTerm = /vav|airTerminalUnit/i.test(markers) || listOf(a.airRef).length || listOf(a.isFedBy).length;
+      const isAhu = /\bahu\b/i.test(markers);
+      if (!isTerm || isAhu) continue;
+      const feederIds = [...listOf(a.airRef), ...listOf(a.isFedBy)];
+      for (const otherRec of recs) {
+        if (listOf((otherRec.attrs || {}).feeds).includes(a.id) || listOf((otherRec.attrs || {}).feeds).includes(r.name)) {
+          const oid = (otherRec.attrs && otherRec.attrs.id) || otherRec.name;
+          if (oid) feederIds.push(String(oid));
+        }
+      }
+      if (!feederIds.length) continue;
+      const term = findUnique(terminals, nodeKeys(r));
+      if (!term) continue;
+      /** @type {string[]} */
+      const feederKeys = [];
+      for (const fid of feederIds) {
+        const fr = byId.get(fid);
+        feederKeys.push(...(fr ? nodeKeys(fr) : [normKey(fid)]));
+      }
+      const ahu = findUnique(ahus, feederKeys.filter(Boolean));
+      if (ahu) want.set(term, ahu);
+    }
+    let applied = 0;
+    for (const [term, ahu] of want) {
+      const already = (ahu.terminals || []).some((/** @type {any} */ t) => (t.iri || t.id) === (term.iri || term.id));
+      if (already) continue;
+      ahu.terminals = (ahu.terminals || []).concat([term]);
+      applied += 1;
+      const drop = (/** @type {any[]} */ arr) => {
+        const i = arr.findIndex((t) => (t.iri || t.id) === (term.iri || term.id));
+        if (i >= 0) arr.splice(i, 1);
+      };
+      drop(unassigned);
+      drop(other);
+      for (const otherAhu of ahus) {
+        if (otherAhu === ahu) continue;
+        drop(otherAhu.terminals || []);
+      }
+    }
+    const attached = new Set([...want.keys()].map((t) => t.label || t.id));
+    const warnings = (model.warnings || []).filter((/** @type {string} */ w) => !attached.size || ![...attached].some((name) => name && w.includes(String(name))));
+    return {
+      model: { ...model, ahus, unassigned, other, warnings },
+      applied,
+    };
+  }
+
   /**
    * @param {{
    *   callOpenFddHook?: ((hook: string, args: Record<string, string>, opts: { signal: any }) => Promise<any>) | null,
@@ -193,24 +347,42 @@
       let note = null;
       /** @type {{ snapshot: string, turtle: string|null }} */
       let got;
+      /** @type {{ model: any[], points: any[] }|null} */
+      let records = null;
+      const load = async () => records || (records = await o.loadRecords());
       try {
         got = await fromOpenFdd(known);
       } catch (e) {
         source = 'built-in';
         note = `Open-FDD graph not used: ${String((e && /** @type {any} */ (e).message) || e)}`;
-        const turtle = localTurtle(await o.loadRecords(), o.modelJs);
+        const turtle = localTurtle(await load(), o.modelJs);
         got = { snapshot: sha256(turtle), turtle };
       }
       const checkedAt = now();
-      if (cache && cache.snapshot === got.snapshot) {
-        cache = { ...cache, source, note, checkedAt, rebuilt: false };
+      const feedSig = tagFeedSignature(source === 'built-in' ? records || {} : await load());
+      if (cache && cache.snapshot === got.snapshot && cache.feedSig === feedSig) {
+        cache = { ...cache, source, note: source === cache.source ? (note || cache.note) : note, checkedAt, rebuilt: false };
         return cache;
       }
-      const turtle = got.turtle;
-      if (turtle === null) throw new Error('model snapshot changed without a graph');
-      const model = o.build(turtle);
+      let turtle = got.turtle;
+      if (turtle === null) turtle = cache && cache.turtle;
+      if (turtle === null || turtle === undefined) throw new Error('model snapshot changed without a graph');
+      let model = o.build(turtle);
+      if (source === 'open-fdd') {
+        const recs = await load();
+        const merged = applyTagFeeds(model, recs);
+        const tagged = o.build(localTurtle(recs, o.modelJs));
+        if (servedCount(tagged) > servedCount(merged.model)) {
+          source = 'built-in';
+          note = 'NF tags used: the shared Open-FDD graph was missing AHU–VAV feeds the tags define';
+          model = tagged;
+        } else {
+          model = merged.model;
+          if (merged.applied) note = 'NF tag feeds merged into the Open-FDD graph';
+        }
+      }
       builds += 1;
-      cache = { source, note, snapshot: got.snapshot, model, builtAt: checkedAt, checkedAt, rebuilt: true };
+      cache = { source, note, snapshot: got.snapshot, feedSig, turtle, model, builtAt: checkedAt, checkedAt, rebuilt: true };
       return cache;
     }
 
@@ -226,5 +398,5 @@
     };
   }
 
-  return { createModelSource, readOpenFdd, localTurtle, loadRecords, loadValues, sha256, withTimeout, OPEN_FDD_APP, DEFAULTS };
+  return { createModelSource, readOpenFdd, localTurtle, loadRecords, loadValues, applyTagFeeds, servedCount, tagFeedSignature, sha256, withTimeout, OPEN_FDD_APP, DEFAULTS };
 });

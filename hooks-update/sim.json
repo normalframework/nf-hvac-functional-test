@@ -4,9 +4,9 @@
     "entryPoint": "hooks/sim.js",
     "mode": "MODE_SCHEDULED",
     "schedule": {
-      "rrule": "DTSTART:20260101T000000Z\nRRULE:FREQ=MINUTELY;INTERVAL=1"
+      "rrule": "DTSTART:20260101T000008Z\nRRULE:FREQ=MINUTELY;INTERVAL=2"
     },
-    "invokeTimeout": "25s",
+    "invokeTimeout": "20s",
     "globalVariables": [
       {
         "label": "nfft_sim_enabled"

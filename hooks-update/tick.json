@@ -4,7 +4,7 @@
     "entryPoint": "hooks/tick.js",
     "mode": "MODE_SCHEDULED",
     "schedule": {
-      "rrule": "RRULE:FREQ=SECONDLY;INTERVAL=10"
+      "rrule": "DTSTART:20260101T000000Z\nRRULE:FREQ=SECONDLY;INTERVAL=30"
     },
     "invokeTimeout": "8s",
     "globalVariables": [

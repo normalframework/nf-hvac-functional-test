@@ -155,7 +155,7 @@ test('alone: Open-FDD not installed (404) falls back the same way', async () => 
   assert.match(got.note, /404/);
 });
 
-test('together: Open-FDD present, its graph is read and no second graph is built from records', async () => {
+test('together: Open-FDD present, its graph is kept when it already has the tag feeds', async () => {
   const nf = fakeNf();
   const ofdd = openFdd(nf);
   const { src } = source(nf, ofdd);
@@ -256,4 +256,83 @@ test('client checks: bad answers, short pages and drift are refused', async () =
   await assert.rejects(M.readOpenFdd(endless, { known: null, signal: null, pageLimit: 1, maxPages: 3 }), /larger than/);
   const skew = async (h, args) => ({ ok: true, snapshot: snap, turtle: 'a', next_offset: args.offset === '0' ? 1 : null, offset: 7 });
   await assert.rejects(M.readOpenFdd(skew, { known: null, signal: null, pageLimit: 1, maxPages: 3 }), /out of step/);
+});
+
+test('shared graph without feeds + tags with airRef groups VAVs under their AHUs', async () => {
+  const stripped = structuredClone(RECORDS);
+  for (const r of stripped.model) {
+    if (r.attrs) {
+      delete r.attrs.airRef;
+      delete r.attrs.feeds;
+      delete r.attrs.isFedBy;
+    }
+  }
+  const bareTurtle = M.localTurtle(stripped, shared);
+  const bare = build(bareTurtle);
+  assert.equal(M.servedCount(bare), 0, 'shared graph lists equipment but has no AHU→VAV feeds');
+  assert.ok((bare.unassigned || []).length >= 11);
+
+  const merged = M.applyTagFeeds(bare, RECORDS);
+  assert.ok(merged.applied >= 11);
+  const ahu1 = merged.model.ahus.find((a) => a.label === 'AHU-1');
+  const ahu2 = merged.model.ahus.find((a) => a.label === 'AHU-2');
+  assert.deepEqual(ahu1.terminals.map((t) => t.label), ['VAV-01 Office', 'VAV-02 Conference', 'VAV-03 Corridor']);
+  assert.equal(ahu2.terminals.length, 8);
+  const unfed = (merged.model.unassigned || []).map((t) => t.label);
+  assert.ok(unfed.some((l) => /VAV-99/.test(l)));
+  assert.equal(unfed.filter((l) => /VAV-0|VAV-2[0-8]/.test(l)).length, 0);
+
+  const snap = M.sha256(bareTurtle);
+  const nf = fakeNf();
+  const ofdd = {
+    call: async () => ({ ok: true, snapshot: snap, turtle: bareTurtle, next_offset: null, offset: 0 }),
+  };
+  const { src, clock } = source(nf, ofdd);
+  const got = await src.get();
+  assert.equal(got.source, 'open-fdd');
+  assert.match(got.note || '', /tag feeds merged/i);
+  const live1 = got.model.ahus.find((a) => a.label === 'AHU-1');
+  const live2 = got.model.ahus.find((a) => a.label === 'AHU-2');
+  assert.equal(live1.terminals.length, 3);
+  assert.equal(live2.terminals.length, 8);
+  assert.ok((got.model.unassigned || []).some((t) => /VAV-99/.test(t.label)));
+
+  // A later airRef-only tag change rebuilds even when the shared snapshot is unchanged.
+  const v99 = nf.records.model.find((r) => r.attrs && r.attrs.id === 'vav-99');
+  v99.attrs.airRef = 'ahu-1';
+  clock.advance(src.recheckMs);
+  const after = await src.get();
+  assert.equal(after.rebuilt, true);
+  assert.ok(after.model.ahus.find((a) => a.label === 'AHU-1').terminals.some((t) => /VAV-99/.test(t.label)));
+});
+
+test('applyTagFeeds matches nfft-sim- prefixed ids to AHU / VAV labels', () => {
+  const model = {
+    ahus: [
+      { id: 'AHU-1', label: 'AHU-1', iri: 'urn:ahu-1', terminals: [] },
+      { id: 'AHU-2', label: 'AHU-2', iri: 'urn:ahu-2', terminals: [] },
+    ],
+    unassigned: [
+      { id: 'VAV-01', label: 'VAV-01 Office', iri: 'urn:vav-01' },
+      { id: 'VAV-21', label: 'VAV-21 North', iri: 'urn:vav-21' },
+      { id: 'VAV-99', label: 'VAV-99 Unassigned', iri: 'urn:vav-99' },
+    ],
+    other: [],
+    warnings: ['VAV-01 Office has no airRef to an air handler'],
+  };
+  const records = {
+    model: [
+      { pointType: 'EQUIPMENT', attrs: { id: 'nfft-sim-ahu-1', dis: 'AHU-1', markers: 'ahu' } },
+      { pointType: 'EQUIPMENT', attrs: { id: 'nfft-sim-ahu-2', dis: 'AHU-2', markers: 'ahu' } },
+      { pointType: 'EQUIPMENT', attrs: { id: 'nfft-sim-vav-01', dis: 'VAV-01 Office', markers: 'vav,airTerminalUnit', airRef: 'nfft-sim-ahu-1' } },
+      { pointType: 'EQUIPMENT', attrs: { id: 'nfft-sim-vav-21', dis: 'VAV-21 North', markers: 'vav,airTerminalUnit', airRef: 'nfft-sim-ahu-2' } },
+      { pointType: 'EQUIPMENT', attrs: { id: 'nfft-sim-vav-99', dis: 'VAV-99 Unassigned', markers: 'vav,airTerminalUnit' } },
+    ],
+  };
+  const merged = M.applyTagFeeds(model, records);
+  assert.equal(merged.applied, 2);
+  assert.deepEqual(merged.model.ahus[0].terminals.map((t) => t.label), ['VAV-01 Office']);
+  assert.deepEqual(merged.model.ahus[1].terminals.map((t) => t.label), ['VAV-21 North']);
+  assert.deepEqual(merged.model.unassigned.map((t) => t.label), ['VAV-99 Unassigned']);
+  assert.ok(!merged.model.warnings.some((w) => /VAV-01/.test(w)));
 });
